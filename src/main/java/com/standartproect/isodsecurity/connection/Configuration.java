@@ -25,8 +25,8 @@ public class Configuration {
 
     private void init(){
         DB_USER_NAME = "postgres";
-        DB_PASSWORD = "2014traffic";
-        DB_URL = "jdbc:postgresql://172.20.255.193:5432/traffic2_center";
+        DB_PASSWORD = "postgres";
+        DB_URL = "jdbc:postgresql://postgres/postgres";
         DB_DRIVER = "org.postgresql.Driver";
         DB_MAX_CONNECTIONS = 15;
     }
