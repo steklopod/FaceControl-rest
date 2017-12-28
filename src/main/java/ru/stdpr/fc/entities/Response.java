@@ -1,4 +1,4 @@
-package com.standartproect.isodsecurity.entities;
+package ru.stdpr.fc.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
