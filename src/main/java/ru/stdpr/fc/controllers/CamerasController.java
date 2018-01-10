@@ -41,12 +41,37 @@ public class CamerasController {
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
+    @RequestMapping(value = "/createCamera", method = RequestMethod.POST)
+    public ResponseEntity<String> createCamera(@RequestBody ChoosenCamera camera) {
+        try {
+            String status = cameraDAO.createCamera(camera);
+            if (status.equals("OK")) {
+                return ResponseEntity.status(HttpStatus.CREATED).build();
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+    }
+
     @GetMapping(value = "/getKeywords")
     public Set<KeyWords> getKeywords() {
-
         Set<KeyWords> keyWordsObjects = keywordsDAO.getKeyWords();
-
         return keyWordsObjects;
     }
+
+    @RequestMapping(value = "/deleteCamera/{id}", method = RequestMethod.DELETE)
+    public ResponseEntity<String> deleteCamera(@PathVariable String id) {
+        try {
+            String decodeId = new String(id.getBytes("ISO-8859-1"), "UTF-8");
+            logger.info("Получен id: " + id + " для удаления." + "| Id после декодирования: " + decodeId + ".");
+            cameraDAO.deleteCamera(decodeId);
+            return ResponseEntity.status(HttpStatus.OK).build();
+        } catch (Exception e) {
+//            logger.error(e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
+
 
 }

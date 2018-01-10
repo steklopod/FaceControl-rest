@@ -78,7 +78,7 @@ public class DataProvider {
          * Когда пул приостановлен, вызовы getConnection () не будут таймаутом и будут удерживаться до тех пор,
          * пока пул не будет возобновлен. По умолчанию: false
          */
-        hikariConfig.setAllowPoolSuspension(true);
+//        hikariConfig.setAllowPoolSuspension(true);
 
         /**
          Этот параметр задает количество подготовленных операторов, которые драйвер Posrgres будет кэшировать для каждого соединения.
@@ -106,19 +106,19 @@ public class DataProvider {
         return ds;
     }
 
-    @Bean
+    @Bean(name = "FaceControlTransactionManager")
     public DataSourceTransactionManager txManager() {
         DataSourceTransactionManager transactionManager = new DataSourceTransactionManager(dataSource());
         transactionManager.setDataSource(dataSource());
         return transactionManager;
     }
 
-    @Bean
-    public JdbcTemplate jdbcTemplate(DataSource dataSource) {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-        jdbcTemplate.setResultsMapCaseInsensitive(true);
-        return jdbcTemplate;
-    }
+//    @Bean
+//    public JdbcTemplate jdbcTemplate(DataSource dataSource) {
+//        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+//        jdbcTemplate.setResultsMapCaseInsensitive(true);
+//        return jdbcTemplate;
+//    }
 
 
 }

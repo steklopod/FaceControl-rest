@@ -12,7 +12,6 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class Camera {
 
-    @JsonIgnore
     String oldId;
 
     String id;
@@ -40,4 +39,7 @@ public class Camera {
         this.latitude = latitude;
         this.coordinates = coordinates;
     }
+
+
+
 }

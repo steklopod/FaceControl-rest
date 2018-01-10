@@ -1,22 +1,18 @@
 package ru.stdpr.fc.repository;
 
-import ru.stdpr.fc.entities.Camera;
-import ru.stdpr.fc.entities.ChoosenCamera;
-import ru.stdpr.fc.entities.Group;
-import ru.stdpr.fc.entities.Territory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+import ru.stdpr.fc.entities.Camera;
+import ru.stdpr.fc.entities.ChoosenCamera;
+import ru.stdpr.fc.entities.Group;
+import ru.stdpr.fc.entities.Territory;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -44,10 +40,11 @@ public class CameraDAO {
             while (refCursor.next()) {
 
                 String territoryName = refCursor.getString("name");
-                territoryName = territoryName.substring(0,1).toUpperCase() + territoryName.substring(1).toLowerCase();
 
-                if (territoryName == null) {
+                if (territoryName == null || territoryName == "") {
                     territoryName = "Территория не задана";
+                } else {
+                    territoryName = territoryName.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
                 }
                 String groupName = refCursor.getString("place_text");
                 if (groupName == null) {
@@ -96,7 +93,7 @@ public class CameraDAO {
                     if (currentGroup != null) {
                         List<Camera> currentCameras = currentGroup.getCameras();
                         currentCameras.add(camera);
-                            logger.debug("Текущ = " + territory.getTerritory() + " /// " + currentGroup.toString());
+                        logger.debug("Текущ = " + territory.getTerritory() + " /// " + currentGroup.toString());
 //                    Если группа новая:
                     } else {
                         Group newGroup = new Group();
@@ -151,7 +148,6 @@ public class CameraDAO {
     }
 
 
-
     public void updateCamera(ChoosenCamera camera) {
 
         String prepareSQL = "SELECT face_control.update_camera(?,?,?,?,?,?,?,?,?)";
@@ -166,7 +162,7 @@ public class CameraDAO {
         String coordinates = camera.getChoosenCoordinates();
 
 //      TODO
-        String[] coord = coordinates.trim().split(" ");
+        String[] coord = coordinates.trim().split("\\s*(=>|,|\\s)\\s*");
         BigDecimal longitude = new BigDecimal(coord[0]);
         BigDecimal latitude = new BigDecimal(coord[1]);
 
@@ -198,7 +194,6 @@ public class CameraDAO {
     }
 
 
-
     private int isNewGr(String groupName, List<Group> groups) {
         int index = 0;
         for (Group gr : groups) {
@@ -211,8 +206,84 @@ public class CameraDAO {
         return index;
     }
 
+    public String createCamera(ChoosenCamera newCamera) {
+        String sql = "SELECT face_control.create_new_camera(?, ?, ?, ?, ?, ?, ?, ?)";
+        PreparedStatement preparedStatement = null;
+        String status;
+        try (Connection connection = dataSource.getConnection()) {
+            preparedStatement = connection.prepareStatement(sql);
 
+            String id = newCamera.getId();
+            if (checkForEmptyString(id) != null) {
+                preparedStatement.setString(1, id);
+            } else {
+                preparedStatement.setNull(1, Types.VARCHAR);
+            }
+            String choosenTerritory = newCamera.getChoosenTerritory();
+            if (checkForEmptyString(choosenTerritory) != null) {
+                preparedStatement.setString(2, choosenTerritory);
+            } else {
+                preparedStatement.setNull(2, Types.VARCHAR);
+            }
+            String choosenGroup = newCamera.getChoosenGroup();
+            if (checkForEmptyString(choosenGroup) != null) {
+                preparedStatement.setString(3, choosenGroup);
+            } else {
+                preparedStatement.setNull(3, Types.VARCHAR);
+            }
+            String[] choosenCoordinates = newCamera.getChoosenCoordinates().trim().split("\\s+");
 
+            if (choosenCoordinates.length != 2) {
+                preparedStatement.setNull(4, Types.NUMERIC);
+                preparedStatement.setNull(5, Types.NUMERIC);
+            } else {
+                BigDecimal longitude = new BigDecimal(choosenCoordinates[0]);
+                BigDecimal latitude = new BigDecimal(choosenCoordinates[1]);
+                preparedStatement.setBigDecimal(4, latitude);
+                preparedStatement.setBigDecimal(5, longitude);
+            }
+            preparedStatement.setString(6, newCamera.getComment());
+            preparedStatement.setBigDecimal(7, newCamera.getProcentsOfRecognize());
+            preparedStatement.setBigDecimal(8, newCamera.getChoosenAzimut());
+
+            preparedStatement.execute();
+
+            logger.info("Камера успешно создана");
+            status = "OK";
+        } catch (SQLException e) {
+            logger.error(e.getLocalizedMessage());
+            status = "BAD";
+            e.printStackTrace();
+            return status;
+        }
+        return status;
+    }
+
+    @SuppressWarnings("Бросает исключение")
+    public void deleteCamera(String id){
+        String prepareSQL = "SELECT face_control.delete_camera(?)";
+        PreparedStatement preparedStatement = null;
+        try(Connection connection = dataSource.getConnection()){
+            preparedStatement = connection.prepareStatement(prepareSQL);
+            preparedStatement.setString(1, id);
+            preparedStatement.execute();
+            preparedStatement.close();
+            logger.info("Камера с id " + id + " успешно удалена.");
+        } catch (SQLException e) {
+            logger.error("Ошибка при попытка удаления камеры с id: " + id + ".");
+            logger.warn(e.getLocalizedMessage());
+//            e.printStackTrace();
+            throw new RuntimeException("id " + id + " не найден в базе данных.");
+        }
+    }
+
+    public String checkForEmptyString(String text) {
+        text = text.trim();
+        if (text.isEmpty()) {
+            text = null;
+        }
+        return text;
+    }
 
 
 }

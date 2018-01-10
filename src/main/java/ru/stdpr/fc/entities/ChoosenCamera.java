@@ -12,7 +12,6 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class ChoosenCamera {
 
-    @JsonIgnore
     String oldId;
 
     String id;
@@ -21,12 +20,9 @@ public class ChoosenCamera {
 
     String choosenGroup;
 
-    BigDecimal choosenAzimut;
-
-    @JsonIgnore
-    String comment;
-
     String choosenCoordinates;
+
+    String comment;
 
     BigDecimal procentsOfRecognize;
 
@@ -35,6 +31,10 @@ public class ChoosenCamera {
 
     @JsonIgnore
     BigDecimal latitude;
+
+
+    BigDecimal choosenAzimut;
+
 
     public ChoosenCamera(String id, String choosenTerritory, String choosenGroup, BigDecimal choosenAzimut, String comment, String choosenCoordinates, BigDecimal procentsOfRecognize) {
         this.id = id;
@@ -45,6 +45,7 @@ public class ChoosenCamera {
         this.choosenCoordinates = choosenCoordinates;
         this.procentsOfRecognize = procentsOfRecognize;
     }
+
     public ChoosenCamera(String id, String choosenTerritory, String choosenGroup, BigDecimal choosenAzimut, String choosenCoordinates, BigDecimal procentsOfRecognize) {
         this.id = id;
         this.choosenTerritory = choosenTerritory;
@@ -54,5 +55,13 @@ public class ChoosenCamera {
         this.procentsOfRecognize = procentsOfRecognize;
     }
 
-
+    public ChoosenCamera(String id, String choosenTerritory, String choosenGroup, String choosenCoordinates, String comment, BigDecimal procentsOfRecognize, BigDecimal choosenAzimut) {
+        this.id = id;
+        this.choosenTerritory = choosenTerritory;
+        this.choosenGroup = choosenGroup;
+        this.choosenCoordinates = choosenCoordinates;
+        this.comment = comment;
+        this.procentsOfRecognize = procentsOfRecognize;
+        this.choosenAzimut = choosenAzimut;
+    }
 }
