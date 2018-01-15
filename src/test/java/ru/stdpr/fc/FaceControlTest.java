@@ -7,16 +7,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.runner.JUnitPlatform;
 import org.junit.runner.RunWith;
-import org.postgresql.util.PSQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Transactional;
-import ru.stdpr.fc.entities.ChoosenCamera;
-import ru.stdpr.fc.entities.KeyWords;
-import ru.stdpr.fc.entities.Territory;
+import ru.stdpr.fc.entities.*;
 import ru.stdpr.fc.repository.CameraDAO;
 import ru.stdpr.fc.repository.KeywordsDAO;
 
@@ -51,10 +48,17 @@ public class FaceControlTest {
 
 
     @Test
+    @DisplayName("Названия территорий")
+    void getTerrNames() {
+        List<TerritoryDiction> territories = cameraDAO.getTerritories();
+        System.err.println(territories);
+    }
+
+    @Test
     @DisplayName("Проверка получения из БД")
     void printValue() {
-        List<Territory> extraPhotos = cameraDAO.getAllCameras();
-        System.err.println(extraPhotos);
+        List<Territory> allCameras = cameraDAO.getCamerasJSON();
+        System.err.println(allCameras);
     }
 
     @Test
@@ -82,14 +86,14 @@ public class FaceControlTest {
     @Disabled
     void testJSON() throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
-        List<Territory> extraPhotos = cameraDAO.getAllCameras();
+        List<Territory> allCameras = cameraDAO.getCamerasJSON();
     }
 
     @Test
     @Transactional
     void createNewCamera() {
         ChoosenCamera choosenCamera = new ChoosenCamera("1-junit-test", "террит-тест",
-                "group-тест", "34.5555534    55.00", "comment--тест",
+                "define-тест", "34.5555534    55.00", "comment--тест",
                 new BigDecimal("33.00"), new BigDecimal("360"));
         String statusOfUpdate = cameraDAO.createCamera(choosenCamera);
         System.err.println("statusOfUpdate = " + statusOfUpdate);
@@ -98,7 +102,7 @@ public class FaceControlTest {
     @Test
 //    @Disabled
     @DisplayName("Ожидаем исключение")
-    void delete(){
+    void delete() {
         String id = "Не существующий id";
         Throwable exception = assertThrows(RuntimeException.class, () -> {
             cameraDAO.deleteCamera(id);
@@ -138,9 +142,9 @@ public class FaceControlTest {
     @Test
     @Transactional
     @Disabled
-    void testSqlInsert(){
+    void testSqlInsert() {
         ChoosenCamera newCamera = new ChoosenCamera("1-junit-test", "террит-тест",
-                "group-тест", "34.5555534    55.00", "comment--тест",
+                "define-тест", "34.5555534    55.00", "comment--тест",
                 new BigDecimal("33.00"), new BigDecimal("360"));
 
         String sql = "SELECT face_control.create_new_camera(?, ?, ?, ?, ?, ?, ?, ?)";
@@ -171,6 +175,26 @@ public class FaceControlTest {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+
+    @Test
+    void testString() {
+        String a = "qwe";
+        a = "@@@@@@@@@@";
+        System.err.println(a);
+    }
+
+    @Test
+    void getGroupsKeyWords() {
+        List<GroupDiction> groups = cameraDAO.getGroups();
+        groups.forEach(System.err::println);
+    }
+
+    @Test
+    void getAllCameras() {
+        List<Camera> allCameras = cameraDAO.getAllCameras();
+        allCameras.forEach(System.err::println);
     }
 
 }

@@ -6,9 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.stdpr.fc.entities.ChoosenCamera;
-import ru.stdpr.fc.entities.KeyWords;
-import ru.stdpr.fc.entities.Territory;
+import ru.stdpr.fc.entities.*;
 import ru.stdpr.fc.repository.CameraDAO;
 import ru.stdpr.fc.repository.KeywordsDAO;
 
@@ -27,8 +25,20 @@ public class CamerasController {
 
     @GetMapping(value = "/getCameras")
     public List<Territory> getCameras() {
-        List<Territory> extraPhotos = cameraDAO.getAllCameras();
+        List<Territory> extraPhotos = cameraDAO.getCamerasJSON();
         return extraPhotos;
+    }
+
+    @GetMapping(value = "/getAllCameras")
+    public List<Camera> getAllCameras() {
+        List<Camera> allCameras = cameraDAO.getAllCameras();
+        return allCameras;
+    }
+
+    @GetMapping(value = "/getGroups")
+    public List<GroupDiction> getGroups() {
+        List<GroupDiction> groups = cameraDAO.getGroups();
+        return groups;
     }
 
     @RequestMapping(value = "/updateCamera", method = RequestMethod.POST)
@@ -44,20 +54,28 @@ public class CamerasController {
     @RequestMapping(value = "/createCamera", method = RequestMethod.POST)
     public ResponseEntity<String> createCamera(@RequestBody ChoosenCamera camera) {
         try {
+            logger.info("camera = " + String.valueOf(camera));
             String status = cameraDAO.createCamera(camera);
             if (status.equals("OK")) {
                 return ResponseEntity.status(HttpStatus.CREATED).build();
             }
         } catch (Exception e) {
+            e.printStackTrace();
             logger.error(e.getMessage());
         }
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).build();
     }
 
     @GetMapping(value = "/getKeywords")
     public Set<KeyWords> getKeywords() {
         Set<KeyWords> keyWordsObjects = keywordsDAO.getKeyWords();
         return keyWordsObjects;
+    }
+
+    @GetMapping(value = "/getTerritories")
+    public List<TerritoryDiction> getTerritories() {
+        List<TerritoryDiction> territories = cameraDAO.getTerritories();
+        return territories;
     }
 
     @RequestMapping(value = "/deleteCamera/{id}", method = RequestMethod.DELETE)

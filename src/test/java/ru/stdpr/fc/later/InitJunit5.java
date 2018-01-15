@@ -5,6 +5,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.platform.runner.JUnitPlatform;
+import org.junit.platform.suite.api.ExcludeTags;
+import org.junit.platform.suite.api.IncludeTags;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,19 +14,22 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
 @RunWith(JUnitPlatform.class)
-public class InitJunit5 {
-
+@IncludeTags("production")
+@ExcludeTags("ex")
+//@ContextConfiguration(classes = {DataProvider.class})
+class InitJunit5 {
     private static Logger logger = LoggerFactory.getLogger(InitJunit5.class);
 
-    @Value("${pool.connection.timeout}")
-    private String timeout;
-
+    @Value("${spring.datasource.url}")
+    private String dataSourceURL;
 
     @BeforeAll
     static void initializeExternalResources() {
@@ -36,47 +41,74 @@ public class InitJunit5 {
         System.out.println("Перед каждым...");
     }
 
-
     @Test
-    @DisplayName("Проверка доступности application.properties")
-    void printValue() {
-        System.err.println(timeout);
+    @DisplayName("Проверка application.properties")
+    @Tag("production")
+    void checkAppPropertiesFile() {
+        assertNotNull(dataSourceURL);
+        System.out.println(" >>> OK <<< Файл application.properties доступен.");
+        System.err.println("Адрес БД: " + dataSourceURL);
     }
 
     @DisplayName("😱 Повторяемый тест")
-    @RepeatedTest(value = 3, name = "{displayName} {currentRepetition}/{totalRepetitions}")
-    void someTest() {
-        System.out.println("Повторяемый тест...");
-        assertTrue(true);
-    }
-
     @RepeatedTest(4)
-    void otherTest() {
+    @Tag("ex")
+    void repeatable() {
         assumeTrue(true);
-        System.out.println("Другой повторяемый...");
-        assertNotEquals(1, 42, "Why wouldn't these be the same?");
+        System.err.println("повторяемый");
+        assertNotEquals(1, 2, "Why wouldn't these be the same?");
     }
 
     @Test
-    @Disabled
-    void disabledTest() {
-        System.exit(1);
+    @DisplayName("Ожидаемое исключение")
+    @Tag("production")
+    void orElseThrow() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            String nullName = null;
+            String name = Optional.ofNullable(nullName).orElseThrow(
+                    IllegalArgumentException::new);
+        });
     }
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 3})
     void testWithValueSource(int argument) {
+        System.err.println(argument);
         assertNotNull(argument);
+    }
+
+    @Test
+    @DisplayName("Прерываемый тест")
+    void testOnDev() {
+        System.setProperty("ENV", "DEV");
+        Assumptions.assumeFalse("DEV".equals(System.getProperty("ENV")), InitJunit5::message);
+        //remainder of test will be aborted
+    }
+    @Test
+    @DisplayName("Непрерываемый тест")
+    void testOnProd() {
+        System.setProperty("ENV", "PROD");
+        Assumptions.assumeFalse("DEV".equals(System.getProperty("ENV")));
+        //remainder of test will proceed
+    }
+    @Test
+    @Disabled
+    @DisplayName("Исключенный тест")
+    void disabledTest() {
+        System.exit(1);
+    }
+    private static String message() {
+        return "TEST Execution Failed :: ";
     }
 
 
     @AfterEach
-    void tearDown() {
+    void afterEach() {
         System.out.println("После каждого метода...");
     }
 
     @AfterAll
-    static void freeExternalResources() {
+    static void afterAll() {
         System.out.println("И, наконец, после всех..");
     }
 

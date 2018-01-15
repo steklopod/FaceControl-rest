@@ -92,7 +92,7 @@ $$
 LANGUAGE plpgsql;
 
 
-DROP FUNCTION face_control.delete_camera(TEXT);
+DROP FUNCTION face_control.delete_camera( TEXT );
 
 --Удалить камеру:
 CREATE OR REPLACE FUNCTION face_control.delete_camera(
@@ -137,6 +137,23 @@ BEGIN
 END;
 $BODY$
 LANGUAGE plpgsql;
+
+-- Создать view
+
+CREATE OR REPLACE VIEW face_control.cameras_by_name AS
+  SELECT
+    camera,
+    name,
+    place_text,
+    azimut,
+    note,
+    min_proc,
+    longitude,
+    latitude
+  FROM face_control.s_cameras
+  ORDER BY name;
+
+
 
 
 

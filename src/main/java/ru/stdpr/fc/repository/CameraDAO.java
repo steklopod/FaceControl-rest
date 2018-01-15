@@ -4,10 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
-import ru.stdpr.fc.entities.Camera;
-import ru.stdpr.fc.entities.ChoosenCamera;
-import ru.stdpr.fc.entities.Group;
-import ru.stdpr.fc.entities.Territory;
+import ru.stdpr.fc.entities.*;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
@@ -15,6 +12,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Repository
 public class CameraDAO {
@@ -26,9 +24,130 @@ public class CameraDAO {
 
     private List<String> temporaryTerritoryList = new ArrayList<>();
 
-    public List<Territory> getAllCameras() {
+    public List<GroupDiction> getGroups() {
+        List<GroupDiction> groupList = new ArrayList<>();
+        String sql = "SELECT * FROM face_control.s_camera_group";
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            logger.info("Отправлен ответ на GET-запрос, на получение списка групп: " + sql);
+            Statement statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery(sql);
+            while (rs.next()) {
+                BigDecimal id = rs.getBigDecimal("group_id");
+                String groupName = rs.getString("group_name");
+                String territoryId = rs.getString("territory_id");
+                String groupDefine = rs.getString("group_define");
+                GroupDiction groupDiction = new GroupDiction(id, groupName, territoryId, groupDefine);
+                groupList.add(groupDiction);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        List<GroupDiction> filterdGroups = groupList.stream()
+                .distinct()
+                .sorted(Comparator.comparing(GroupDiction::getName))
+                .collect(Collectors.toList());
+        groupList.clear();
+        return filterdGroups;
+    }
+
+    public List<TerritoryDiction> getTerritories() {
+        List<TerritoryDiction> territoryList = new ArrayList<>();
+        String sql = "SELECT * FROM face_control.s_camera_territory";
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            logger.info(">>>GET запрос на получение территорий: " + sql);
+            Statement statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery(sql);
+            while (rs.next()) {
+                BigDecimal id = rs.getBigDecimal("territory_id");
+                String territoryName = rs.getString("territory_name");
+                String territoryDefine = rs.getString("territory_define");
+                TerritoryDiction territoryDiction = new TerritoryDiction(id, territoryName, territoryDefine);
+                territoryList.add(territoryDiction);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        List<TerritoryDiction> filteredTerritories = territoryList.stream()
+                .distinct()
+                .sorted(Comparator.comparing(TerritoryDiction::getName))
+                .collect(Collectors.toList());
+        return filteredTerritories;
+    }
+
+
+    public List<Camera> getAllCameras() {
+        String sql = "SELECT * FROM face_control.s_cameras";
+//        logger.info(">>>GET запрос на получение списка камер: " + sql);
+
+        List<Camera> cameras = new ArrayList<>();
+//      Словари из БД:
+        List<TerritoryDiction> territories = getTerritories();
+        List<GroupDiction> groupsList = getGroups();
+
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            Statement statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery(sql);
+
+            while (rs.next()) {
+                BigDecimal territoryId = rs.getBigDecimal("territory_id");
+
+                String id = rs.getString("camera");
+                BigDecimal azimut = rs.getBigDecimal("azimut");
+                BigDecimal recognizePercent = rs.getBigDecimal("min_proc");
+                String comment = rs.getString("note");
+                BigDecimal longitude = rs.getBigDecimal("longitude");
+                BigDecimal latitude = rs.getBigDecimal("latitude");
+                String coordinates = String.valueOf(longitude) + ", " + String.valueOf(latitude);
+                String cameraName = rs.getString("name");
+
+                String territoryName = territories.stream()
+                        .filter((p) -> p.getId() == territoryId && p.getId() != null)
+                        .findFirst()
+                        .map(TerritoryDiction::getName)
+                        .orElse("Территория не задана");
+//                territoryName = territoryName.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
+
+                BigDecimal groupId = rs.getBigDecimal("group_id");
+
+                String groupName = groupsList.stream()
+                        .filter((g) -> g.getGroupId() == groupId && g.getGroupId() != null)
+                        .findAny()
+                        .map(GroupDiction::getName)
+                        .orElse("Без группы");
+//                name = name.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
+
+                String placeText = rs.getString("place_text");
+
+                Camera camera = new Camera(id, cameraName, placeText, azimut, recognizePercent, comment, territoryId, territoryName, groupId, groupName, coordinates);
+                cameras.add(camera);
+            }
+            connection.commit();
+        } catch (SQLException e) {
+            logger.error("Ошибка при обращении к базе данных в момент получения фотографий. ");
+            logger.warn(e.getLocalizedMessage());
+        }
+        logger.info("Информация со списком отправлена в ответ на GET запрос.");
+
+        cameras.sort(Comparator.comparing(Camera::getId));
+
+        return cameras;
+    }
+
+
+    public List<Territory> getCamerasJSON() {
         String sql = "SELECT get_cameras cur FROM face_control.get_cameras()";
+
         List<Territory> camerasJSON = new ArrayList<>();
+//      Словари из БД:
+        List<TerritoryDiction> territories = getTerritories();
+        List<GroupDiction> groupsList = getGroups();
+//      2 - группы
+//        List<Group> groups = new ArrayList<>();
+//      3 - камеры
+//        List<Camera> cameras = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
@@ -38,73 +157,78 @@ public class CameraDAO {
             ResultSet refCursor = (ResultSet) rs.getObject("cur");
 
             while (refCursor.next()) {
+                String territoryName;
+//              TODO - неиспользуемые пораметры (временно)
+                String territoryDescription = refCursor.getString("name");
+                String placeText = refCursor.getString("place_text");
 
-                String territoryName = refCursor.getString("name");
+                BigDecimal territoryId = refCursor.getBigDecimal("territory_id");
 
-                if (territoryName == null || territoryName == "") {
-                    territoryName = "Территория не задана";
-                } else {
-                    territoryName = territoryName.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
-                }
-                String groupName = refCursor.getString("place_text");
-                if (groupName == null) {
-                    groupName = "Без группы";
-                }
+                territoryName = territories.stream()
+                        .filter((p) -> p.getId() == territoryId && p.getId() != null)
+                        .findFirst()
+                        .map(TerritoryDiction::getName)
+                        .orElse("Территория не задана");
+//                territoryName = territoryName.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
+
+                BigDecimal groupId = refCursor.getBigDecimal("group_id");
+
+                String groupName = groupsList.stream()
+                        .filter((g) -> g.getGroupId() == groupId && g.getGroupId() != null)
+                        .findAny()
+                        .map(GroupDiction::getName)
+                        .orElse("Без группы");
+//                name = name.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
+
                 String id = refCursor.getString("camera");
                 BigDecimal azimut = refCursor.getBigDecimal("azimut");
                 BigDecimal recognizePercent = refCursor.getBigDecimal("min_proc");
                 String comment = refCursor.getString("note");
                 BigDecimal longitude = refCursor.getBigDecimal("longitude");
                 BigDecimal latitude = refCursor.getBigDecimal("latitude");
-                String coordinates = String.valueOf(longitude) + " " + String.valueOf(latitude);
+                String coordinates = String.valueOf(longitude) + ", " + String.valueOf(latitude);
 
                 Camera camera = new Camera(id, azimut, recognizePercent, comment, longitude, latitude, coordinates);
 
+
+                List<Group> groups = new ArrayList<>();
+                Territory newTerritory = new Territory(territoryId, territoryName, groups);
+
 //              Если территория новая:
                 if (isNewTerritory(territoryName)) {
-                    Territory territory = new Territory();
-                    List<Group> groups = new ArrayList<>();
                     List<Camera> cameras = new ArrayList<>();
 
                     temporaryTerritoryList.add(territoryName);
-
                     cameras.add(camera);
 
-                    Group group = new Group();
-                    group.setGroup(groupName);
-                    group.setCameras(cameras);
+                    Group group = new Group(groupId, groupName, territoryId, cameras);
                     groups.add(group);
 
-                    territory.setTerritory(territoryName);
-                    territory.setGroups(groups);
+//                    System.out.println("territoryId = " + territoryId);
+                    System.out.println("define = " + group);
 
-                    camerasJSON.add(territory);
-
-                    logger.debug(String.valueOf("новая + " + territory.getTerritory() + " /// " + group.getGroup()));
+                    camerasJSON.add(newTerritory);
 
 //                Если территория существует:
                 } else {
                     int i = temporaryTerritoryList.indexOf(territoryName);
                     Territory territory = camerasJSON.get(i);
-                    List<Group> groups = territory.getGroups();
-                    Group currentGroup = isNewGroup(groupName, groups);
+//                    System.err.println(territory);
+                    List<Group> existingGroups = territory.getGroups();
+                    Group currentGroup = isNewGroup(groupName, existingGroups);
 
 //                  Если группа существует:
                     if (currentGroup != null) {
                         List<Camera> currentCameras = currentGroup.getCameras();
                         currentCameras.add(camera);
-                        logger.debug("Текущ = " + territory.getTerritory() + " /// " + currentGroup.toString());
-//                    Если группа новая:
+//                        logger.debug("Текущ = " + territory.getTerritory() + " /// " + currentGroup.toString());
+
+//                  Если группа новая:
                     } else {
-                        Group newGroup = new Group();
-                        List<Camera> cameras = new ArrayList<>();
-
-                        newGroup.setGroup(groupName);
-                        newGroup.setCameras(cameras);
-                        cameras.add(camera);
-                        groups.add(newGroup);
-
-                        logger.debug(String.valueOf("Группа * " + territory.getTerritory() + " /// " + newGroup.getGroup()));
+                        List<Camera> camerasGroup = new ArrayList<>();
+                        camerasGroup.add(camera);
+                        Group newGroup = new Group(groupName, camerasGroup);
+                        existingGroups.add(newGroup);
                     }
                 }
             }
@@ -116,7 +240,7 @@ public class CameraDAO {
         } finally {
             temporaryTerritoryList.clear();
         }
-        logger.info("Информация о камерах отправлена.");
+        logger.info("Информация о камерах отправлена в ответ на GET запрос.");
 
         camerasJSON.sort(Comparator.comparing(Territory::getTerritory));
 
@@ -231,7 +355,7 @@ public class CameraDAO {
             } else {
                 preparedStatement.setNull(3, Types.VARCHAR);
             }
-            String[] choosenCoordinates = newCamera.getChoosenCoordinates().trim().split("\\s+");
+            String[] choosenCoordinates = newCamera.getChoosenCoordinates().trim().split("\\s*(=>|,|\\s)\\s*");
 
             if (choosenCoordinates.length != 2) {
                 preparedStatement.setNull(4, Types.NUMERIC);
@@ -260,10 +384,10 @@ public class CameraDAO {
     }
 
     @SuppressWarnings("Бросает исключение")
-    public void deleteCamera(String id){
+    public void deleteCamera(String id) {
         String prepareSQL = "SELECT face_control.delete_camera(?)";
         PreparedStatement preparedStatement = null;
-        try(Connection connection = dataSource.getConnection()){
+        try (Connection connection = dataSource.getConnection()) {
             preparedStatement = connection.prepareStatement(prepareSQL);
             preparedStatement.setString(1, id);
             preparedStatement.execute();
