@@ -8,10 +8,10 @@ import ru.stdpr.fc.entities.*;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @Repository
@@ -24,8 +24,14 @@ public class CameraDAO {
 
     private List<String> temporaryTerritoryList = new ArrayList<>();
 
+    private String nameOfEmptyGroup = "* Группа не задана";
+    private String nameOfEmptyTerritory = "* Территория не задана";
+
     public List<GroupDiction> getGroups() {
         List<GroupDiction> groupList = new ArrayList<>();
+
+        groupList.add(new GroupDiction(nameOfEmptyGroup));
+
         String sql = "SELECT * FROM face_control.s_camera_group";
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
@@ -35,7 +41,8 @@ public class CameraDAO {
             while (rs.next()) {
                 BigDecimal id = rs.getBigDecimal("group_id");
                 String groupName = rs.getString("group_name");
-                String territoryId = rs.getString("territory_id");
+
+                BigDecimal territoryId = rs.getBigDecimal("territory_id");
                 String groupDefine = rs.getString("group_define");
                 GroupDiction groupDiction = new GroupDiction(id, groupName, territoryId, groupDefine);
                 groupList.add(groupDiction);
@@ -53,6 +60,8 @@ public class CameraDAO {
 
     public List<TerritoryDiction> getTerritories() {
         List<TerritoryDiction> territoryList = new ArrayList<>();
+        territoryList.add(new TerritoryDiction(nameOfEmptyTerritory));
+
         String sql = "SELECT * FROM face_control.s_camera_territory";
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
@@ -74,6 +83,59 @@ public class CameraDAO {
                 .sorted(Comparator.comparing(TerritoryDiction::getName))
                 .collect(Collectors.toList());
         return filteredTerritories;
+    }
+
+
+    public List<Territory> getCamerasTree() {
+        List<Territory> tree = new ArrayList<>();
+
+        List<TerritoryDiction> territoryDictList = getTerritories();
+        List<GroupDiction> groupsList = getGroups();
+        List<Camera> allCameras = getAllCameras();
+
+        Set<BigDecimal> territoryIds = territoryDictList.stream()
+                .map(TerritoryDiction::getId)
+                .collect(Collectors.toSet());
+
+        for (BigDecimal ter : territoryIds) {
+            String territoryname = territoryDictList.stream()
+                    .filter(t -> t.getId() == ter)
+                    .findAny()
+                    .map(TerritoryDiction::getName)
+                    .orElse(nameOfEmptyTerritory);
+
+            List<Camera> camerasInCurrentTerritory = allCameras.stream()
+                    .filter(cam -> cam.getTerritoryId() == ter)
+                    .collect(Collectors.toList());
+
+            List<Camera> camerasWithoutGroup = camerasInCurrentTerritory.stream()
+                    .filter(c -> c.getGroupId() == null && c.getTerritoryId() != null)
+                    .collect(Collectors.toList());
+
+            List<Group> filteredGroups = groupsList.stream()
+                    .filter(gr -> gr.getTerritoryId() == ter)
+                    .map(g -> {
+
+                        return new Group(g.getName(),
+                                camerasInCurrentTerritory.stream()
+                                        .filter(camera -> {
+                                            return camera.getGroupId() == g.getGroupId();
+                                        })
+                                        .collect(Collectors.toList())
+                        );
+                    })
+                    .collect(Collectors.toList());
+
+            if (!camerasWithoutGroup.isEmpty()) {
+                System.err.println("Кол-во камер без групп в данной территории: " + camerasWithoutGroup.size());
+                filteredGroups.add(new Group(nameOfEmptyGroup, camerasWithoutGroup));
+                System.out.println(camerasWithoutGroup);
+            }
+            Territory territory = new Territory(territoryname, filteredGroups);
+            tree.add(territory);
+        }
+        tree.sort(Comparator.comparing(Territory::getTerritory));
+        return tree;
     }
 
 
@@ -104,19 +166,19 @@ public class CameraDAO {
                 String cameraName = rs.getString("name");
 
                 String territoryName = territories.stream()
-                        .filter((p) -> p.getId() == territoryId && p.getId() != null)
+                        .filter((p) -> p.getId() == territoryId)
                         .findFirst()
                         .map(TerritoryDiction::getName)
-                        .orElse("Территория не задана");
+                        .orElse(nameOfEmptyTerritory);
 //                territoryName = territoryName.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
 
                 BigDecimal groupId = rs.getBigDecimal("group_id");
 
                 String groupName = groupsList.stream()
-                        .filter((g) -> g.getGroupId() == groupId && g.getGroupId() != null)
+                        .filter((g) -> g.getGroupId() == groupId)
                         .findAny()
                         .map(GroupDiction::getName)
-                        .orElse("Без группы");
+                        .orElse(nameOfEmptyGroup);
 //                name = name.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
 
                 String placeText = rs.getString("place_text");
@@ -168,7 +230,7 @@ public class CameraDAO {
                         .filter((p) -> p.getId() == territoryId && p.getId() != null)
                         .findFirst()
                         .map(TerritoryDiction::getName)
-                        .orElse("Территория не задана");
+                        .orElse(nameOfEmptyTerritory);
 //                territoryName = territoryName.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
 
                 BigDecimal groupId = refCursor.getBigDecimal("group_id");
@@ -177,7 +239,7 @@ public class CameraDAO {
                         .filter((g) -> g.getGroupId() == groupId && g.getGroupId() != null)
                         .findAny()
                         .map(GroupDiction::getName)
-                        .orElse("Без группы");
+                        .orElse(nameOfEmptyGroup);
 //                name = name.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
 
                 String id = refCursor.getString("camera");

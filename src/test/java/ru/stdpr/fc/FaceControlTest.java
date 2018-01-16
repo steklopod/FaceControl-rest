@@ -194,7 +194,12 @@ public class FaceControlTest {
     @Test
     void getAllCameras() {
         List<Camera> allCameras = cameraDAO.getAllCameras();
-        allCameras.forEach(System.err::println);
+//        allCameras.forEach(System.err::println);
+    }
+    @Test
+    void getCamerasTree() {
+        List<Territory> camerasTree = cameraDAO.getCamerasTree();
+        System.err.println(camerasTree);
     }
 
 }

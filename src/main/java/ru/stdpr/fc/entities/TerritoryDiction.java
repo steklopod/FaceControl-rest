@@ -15,4 +15,8 @@ public class TerritoryDiction {
     String name;
 
     String define;
+
+    public TerritoryDiction(String name) {
+        this.name = name;
+    }
 }

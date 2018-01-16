@@ -25,7 +25,7 @@ public class CamerasController {
 
     @GetMapping(value = "/getCameras")
     public List<Territory> getCameras() {
-        List<Territory> extraPhotos = cameraDAO.getCamerasJSON();
+        List<Territory> extraPhotos = cameraDAO.getCamerasTree();
         return extraPhotos;
     }
 
@@ -89,6 +89,13 @@ public class CamerasController {
 //            logger.error(e.getMessage());
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @SuppressWarnings("Первая версия, устаревшая")
+    @GetMapping(value = "/getCamerasTree")
+    public List<Territory> getCamerasTree() {
+        List<Territory> extraPhotos = cameraDAO.getCamerasJSON();
+        return extraPhotos;
     }
 
 

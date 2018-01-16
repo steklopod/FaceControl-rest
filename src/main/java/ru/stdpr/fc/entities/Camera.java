@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class Camera {
 
+    @JsonIgnore
     String oldId;
 
     String id;
@@ -32,10 +33,12 @@ public class Camera {
     @JsonIgnore
     BigDecimal latitude;
 
+//    @JsonIgnore
     BigDecimal territoryId;
 
     String territoryName;
 
+//    @JsonIgnore
     BigDecimal groupId;
 
     String groupName;

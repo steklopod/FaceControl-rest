@@ -14,12 +14,12 @@ import java.util.List;
 @AllArgsConstructor
 public class Group {
 
-//    @JsonIgnore
+    @JsonIgnore
     BigDecimal id;
 
     String group;
 
-//    @JsonIgnore
+    @JsonIgnore
     BigDecimal territoryId;
 
     List<Camera> cameras;

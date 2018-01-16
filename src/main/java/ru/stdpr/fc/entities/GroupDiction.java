@@ -16,7 +16,11 @@ public class GroupDiction {
 
     String name;
 
-    String territoryId;
+    BigDecimal territoryId;
 
     String define;
+
+    public GroupDiction(String name) {
+        this.name = name;
+    }
 }
