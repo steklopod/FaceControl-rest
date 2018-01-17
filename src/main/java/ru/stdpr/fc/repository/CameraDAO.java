@@ -3,15 +3,17 @@ package ru.stdpr.fc.repository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 import ru.stdpr.fc.entities.*;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.sql.*;
-import java.util.*;
-import java.util.stream.Collector;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Repository
@@ -20,6 +22,7 @@ public class CameraDAO {
     private static final Logger logger = LoggerFactory.getLogger(CameraDAO.class);
 
     @Autowired
+    @Qualifier("FaceControlDC")
     private DataSource dataSource;
 
     private List<String> temporaryTerritoryList = new ArrayList<>();
@@ -116,7 +119,7 @@ public class CameraDAO {
                     .filter(gr -> gr.getTerritoryId() == ter)
                     .map(g -> {
 
-                        return new Group(g.getName(),
+                        return new Group(g.getGroupId(), g.getName(), ter,
                                 camerasInCurrentTerritory.stream()
                                         .filter(camera -> {
                                             return camera.getGroupId() == g.getGroupId();
@@ -127,11 +130,9 @@ public class CameraDAO {
                     .collect(Collectors.toList());
 
             if (!camerasWithoutGroup.isEmpty()) {
-                System.err.println("Кол-во камер без групп в данной территории: " + camerasWithoutGroup.size());
-                filteredGroups.add(new Group(nameOfEmptyGroup, camerasWithoutGroup));
-                System.out.println(camerasWithoutGroup);
+                filteredGroups.add(new Group(nameOfEmptyGroup, ter, camerasWithoutGroup));
             }
-            Territory territory = new Territory(territoryname, filteredGroups);
+            Territory territory = new Territory(ter, territoryname, filteredGroups);
             tree.add(territory);
         }
         tree.sort(Comparator.comparing(Territory::getTerritory));
@@ -141,7 +142,6 @@ public class CameraDAO {
 
     public List<Camera> getAllCameras() {
         String sql = "SELECT * FROM face_control.s_cameras";
-//        logger.info(">>>GET запрос на получение списка камер: " + sql);
 
         List<Camera> cameras = new ArrayList<>();
 //      Словари из БД:
@@ -206,10 +206,6 @@ public class CameraDAO {
 //      Словари из БД:
         List<TerritoryDiction> territories = getTerritories();
         List<GroupDiction> groupsList = getGroups();
-//      2 - группы
-//        List<Group> groups = new ArrayList<>();
-//      3 - камеры
-//        List<Camera> cameras = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
@@ -297,7 +293,7 @@ public class CameraDAO {
             prepareStatement.close();
             connection.commit();
         } catch (SQLException e) {
-            logger.error("Ошибка при обращении к базе данных в момент получения фотографий. ");
+            logger.error("Ошибка при обращении к базе данных в момент получения списка камер. ");
             logger.warn(e.getLocalizedMessage());
         } finally {
             temporaryTerritoryList.clear();

@@ -10,13 +10,14 @@ import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Transactional;
 import ru.stdpr.fc.entities.*;
 import ru.stdpr.fc.repository.CameraDAO;
 import ru.stdpr.fc.repository.KeywordsDAO;
-
+import ru.stdpr.fc.repository.MapDAO;
 
 import javax.sql.DataSource;
 import java.io.IOException;
@@ -27,9 +28,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @ExtendWith(SpringExtension.class)
@@ -43,8 +45,18 @@ public class FaceControlTest {
     CameraDAO cameraDAO;
     @Autowired
     KeywordsDAO keywordsDAO;
+
     @Autowired
+    @Qualifier("FaceControlDC")
     DataSource dataSource;
+    @Autowired
+    MapDAO mapDAO;
+
+    @Test
+    void getStatusList(){
+        List<Status> cameraStatusList = mapDAO.getCameraStatus();
+        System.err.println(cameraStatusList);
+    }
 
 
     @Test

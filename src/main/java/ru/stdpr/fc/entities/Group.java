@@ -14,18 +14,30 @@ import java.util.List;
 @AllArgsConstructor
 public class Group {
 
-    @JsonIgnore
+//    @JsonIgnore
     BigDecimal id;
 
     String group;
 
-    @JsonIgnore
+//    @JsonIgnore
     BigDecimal territoryId;
 
     List<Camera> cameras;
 
     public Group(String group, List<Camera> cameras) {
         this.group = group;
+        this.cameras = cameras;
+    }
+
+    public Group(BigDecimal id, String group, List<Camera> cameras) {
+        this.id = id;
+        this.group = group;
+        this.cameras = cameras;
+    }
+
+    public Group(String group, BigDecimal territoryId, List<Camera> cameras) {
+        this.group = group;
+        this.territoryId = territoryId;
         this.cameras = cameras;
     }
 }

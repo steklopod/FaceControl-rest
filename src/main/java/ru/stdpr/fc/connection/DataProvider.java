@@ -23,25 +23,18 @@ public class DataProvider {
 
     @Value("${spring.datasource.username}")
     private String username;
-
     @Value("${spring.datasource.password}")
     private String password;
-
     @Value("${spring.datasource.url}")
     private String url;
-
     @Value("${spring.datasource.driver-class-name}")
     private String driverClassName;
-
     @Value("${pool.size}")
     private int poolsize;
-
     @Value("${pool.connection.timeout}")
     private int connectionTimeOut;
-
     @Value("${pool.idle.timeout}")
     private int idleTimeOut;
-
     @Value("${pool.max.lifetime}")
     private int lifetime;
 
@@ -107,6 +100,7 @@ public class DataProvider {
     }
 
     @Bean(name = "FaceControlTransactionManager")
+    @Primary
     public DataSourceTransactionManager txManager() {
         DataSourceTransactionManager transactionManager = new DataSourceTransactionManager(dataSource());
         transactionManager.setDataSource(dataSource());

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.stdpr.fc.entities.*;
 import ru.stdpr.fc.repository.CameraDAO;
 import ru.stdpr.fc.repository.KeywordsDAO;
+import ru.stdpr.fc.repository.MapDAO;
 
 import java.util.List;
 import java.util.Set;
@@ -22,6 +23,9 @@ public class CamerasController {
     CameraDAO cameraDAO;
     @Autowired
     KeywordsDAO keywordsDAO;
+
+    @Autowired
+    MapDAO mapDAO;
 
     @GetMapping(value = "/getCameras")
     public List<Territory> getCameras() {
@@ -96,6 +100,12 @@ public class CamerasController {
     public List<Territory> getCamerasTree() {
         List<Territory> extraPhotos = cameraDAO.getCamerasJSON();
         return extraPhotos;
+    }
+
+    @GetMapping(value = "/getCameraStatus")
+    public List<Status> getCameraStatus() {
+        List<Status> cameraStatusList = mapDAO.getCameraStatus();
+        return cameraStatusList;
     }
 
 
