@@ -57,16 +57,7 @@ public class Camera {
         this.coordinates = coordinates;
     }
 
-    public Camera(String oldId, String id, BigDecimal azimut, BigDecimal recognizePercent, String comment, BigDecimal territoryId, BigDecimal groupId, String coordinates) {
-        this.oldId = oldId;
-        this.id = id;
-        this.azimut = azimut;
-        this.recognizePercent = recognizePercent;
-        this.comment = comment;
-        this.territoryId = territoryId;
-        this.groupId = groupId;
-        this.coordinates = coordinates;
-    }
+
 
     public Camera(String id, String name, String placeText, BigDecimal azimut, BigDecimal recognizePercent, String comment, BigDecimal territoryId, String territoryName, BigDecimal groupId, String groupName, String coordinates) {
         this.id = id;

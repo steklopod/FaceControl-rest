@@ -23,7 +23,6 @@ public class CamerasController {
     CameraDAO cameraDAO;
     @Autowired
     KeywordsDAO keywordsDAO;
-
     @Autowired
     MapDAO mapDAO;
 

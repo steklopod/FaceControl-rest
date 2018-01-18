@@ -12,6 +12,8 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import ru.stdpr.fc.connection.DataProvider;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,6 +24,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @ContextConfiguration(classes = {DataProvider.class})
 class OptionalOrElse {
     private static Logger logger = LoggerFactory.getLogger(OptionalOrElse.class);
+
+    @Test
+    void replaceAllNull(){
+        List<String> list = Arrays.asList("a", "b", null, "c", "d", null);
+        list.replaceAll(s -> s == null ? "x" : s);
+        System.out.println(list);
+    }
 
     @Test
     void whenOrElseGetWorks_thenCorrect() {

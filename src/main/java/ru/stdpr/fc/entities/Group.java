@@ -1,7 +1,6 @@
 package ru.stdpr.fc.entities;
 
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,13 +13,15 @@ import java.util.List;
 @AllArgsConstructor
 public class Group {
 
-//    @JsonIgnore
+    //    @JsonIgnore
     BigDecimal id;
 
     String group;
 
-//    @JsonIgnore
+    //    @JsonIgnore
     BigDecimal territoryId;
+
+    String define;
 
     List<Camera> cameras;
 
@@ -36,6 +37,13 @@ public class Group {
     }
 
     public Group(String group, BigDecimal territoryId, List<Camera> cameras) {
+        this.group = group;
+        this.territoryId = territoryId;
+        this.cameras = cameras;
+    }
+
+    public Group(BigDecimal id, String group, BigDecimal territoryId, List<Camera> cameras) {
+        this.id = id;
         this.group = group;
         this.territoryId = territoryId;
         this.cameras = cameras;

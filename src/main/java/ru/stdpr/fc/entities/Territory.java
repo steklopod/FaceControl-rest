@@ -1,6 +1,5 @@
 package ru.stdpr.fc.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,7 +17,8 @@ public class Territory {
 
     String territory;
 
-    @JsonIgnore
+//    @JsonIgnore
+//    TODO - изменить название поля
     String define;
 
     List<Group> groups;

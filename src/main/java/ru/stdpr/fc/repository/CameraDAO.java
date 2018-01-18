@@ -10,10 +10,9 @@ import ru.stdpr.fc.entities.*;
 import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 @Repository
@@ -29,6 +28,12 @@ public class CameraDAO {
 
     private String nameOfEmptyGroup = "* Группа не задана";
     private String nameOfEmptyTerritory = "* Территория не задана";
+
+
+    static <T> void replaceIf(List<T> list, Predicate<? super T> pred, UnaryOperator<T> op) {
+        list.replaceAll(t -> pred.test(t) ? op.apply(t) : t);
+    }
+
 
     public List<GroupDiction> getGroups() {
         List<GroupDiction> groupList = new ArrayList<>();
@@ -63,7 +68,7 @@ public class CameraDAO {
 
     public List<TerritoryDiction> getTerritories() {
         List<TerritoryDiction> territoryList = new ArrayList<>();
-        territoryList.add(new TerritoryDiction(nameOfEmptyTerritory));
+//        territoryList.add(new TerritoryDiction(nameOfEmptyTerritory));
 
         String sql = "SELECT * FROM face_control.s_camera_territory";
         try (Connection connection = dataSource.getConnection()) {
@@ -74,6 +79,9 @@ public class CameraDAO {
             while (rs.next()) {
                 BigDecimal id = rs.getBigDecimal("territory_id");
                 String territoryName = rs.getString("territory_name");
+                if (territoryName == null) {
+                    territoryName = "Без имени";
+                }
                 String territoryDefine = rs.getString("territory_define");
                 TerritoryDiction territoryDiction = new TerritoryDiction(id, territoryName, territoryDefine);
                 territoryList.add(territoryDiction);
@@ -81,10 +89,12 @@ public class CameraDAO {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
         List<TerritoryDiction> filteredTerritories = territoryList.stream()
                 .distinct()
-                .sorted(Comparator.comparing(TerritoryDiction::getName))
+                .sorted(Comparator.comparing(TerritoryDiction::getName, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
+        filteredTerritories.add(new TerritoryDiction(nameOfEmptyTerritory));
         return filteredTerritories;
     }
 
@@ -93,6 +103,7 @@ public class CameraDAO {
         List<Territory> tree = new ArrayList<>();
 
         List<TerritoryDiction> territoryDictList = getTerritories();
+
         List<GroupDiction> groupsList = getGroups();
         List<Camera> allCameras = getAllCameras();
 
@@ -107,6 +118,12 @@ public class CameraDAO {
                     .map(TerritoryDiction::getName)
                     .orElse(nameOfEmptyTerritory);
 
+            String terrDefine = territoryDictList.stream()
+                    .filter(t -> t.getId() == ter)
+                    .findAny()
+                    .map(TerritoryDiction::getDefine)
+                    .orElse("");
+
             List<Camera> camerasInCurrentTerritory = allCameras.stream()
                     .filter(cam -> cam.getTerritoryId() == ter)
                     .collect(Collectors.toList());
@@ -118,7 +135,7 @@ public class CameraDAO {
             List<Group> filteredGroups = groupsList.stream()
                     .filter(gr -> gr.getTerritoryId() == ter)
                     .map(g -> {
-
+//                        TODO - добавить поле define
                         return new Group(g.getGroupId(), g.getName(), ter,
                                 camerasInCurrentTerritory.stream()
                                         .filter(camera -> {
@@ -132,10 +149,17 @@ public class CameraDAO {
             if (!camerasWithoutGroup.isEmpty()) {
                 filteredGroups.add(new Group(nameOfEmptyGroup, ter, camerasWithoutGroup));
             }
-            Territory territory = new Territory(ter, territoryname, filteredGroups);
+            if (terrDefine.equals("")) {
+                terrDefine = null;
+            }
+
+            Territory territory = new Territory(ter, territoryname, terrDefine, filteredGroups);
             tree.add(territory);
         }
         tree.sort(Comparator.comparing(Territory::getTerritory));
+        if (tree.get(0).getTerritory().equals(nameOfEmptyTerritory)) {
+            Collections.rotate(tree, -1);
+        }
         return tree;
     }
 
@@ -255,19 +279,19 @@ public class CameraDAO {
         try (Connection connection = dataSource.getConnection()) {
             preparedStatement = connection.prepareStatement(sql);
             String id = newCamera.getId();
-            if (checkForEmptyString(id) != null) {
+            if (trim(id) != null) {
                 preparedStatement.setString(1, id);
             } else {
                 preparedStatement.setNull(1, Types.VARCHAR);
             }
             String newCameraName = newCamera.getName();
-            if (checkForEmptyString(newCameraName) != null) {
+            if (trim(newCameraName) != null) {
                 preparedStatement.setString(2, newCameraName);
             } else {
                 preparedStatement.setNull(2, Types.VARCHAR);
             }
             String placeText = newCamera.getPlaceText();
-            if (checkForEmptyString(placeText) != null) {
+            if (trim(placeText) != null) {
                 preparedStatement.setString(3, placeText);
             } else {
                 preparedStatement.setNull(3, Types.VARCHAR);
@@ -384,7 +408,7 @@ public class CameraDAO {
                     groups.add(group);
 
 //                    System.out.println("territoryId = " + territoryId);
-                    System.out.println("define = " + group);
+//                    System.out.println("define = " + group);
 
                     camerasJSON.add(newTerritory);
 
@@ -464,10 +488,9 @@ public class CameraDAO {
     }
 
 
-    public String checkForEmptyString(String text) {
-        text = text.trim();
-        if (text.isEmpty()) {
-            text = null;
+    private String trim(String text) {
+        if (text != null) {
+            text = text.trim();
         }
         return text;
     }
