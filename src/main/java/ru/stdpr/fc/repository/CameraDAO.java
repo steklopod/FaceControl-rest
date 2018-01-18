@@ -199,6 +199,127 @@ public class CameraDAO {
     }
 
 
+    public void updateCamera(Camera camera) {
+
+        String prepareSQL = "SELECT face_control.update_camera(?,?,?,?,?,?,?,?,?,?,?)";
+
+        String oldId = camera.getOldId();
+        String id = camera.getId();
+        String cameraName = camera.getName();
+        String placeText = camera.getPlaceText();
+        BigDecimal azimut = camera.getAzimut();
+        BigDecimal recognizePercent = camera.getRecognizePercent();
+        String comment = camera.getComment();
+        BigDecimal territoryId = camera.getTerritoryId();
+        BigDecimal groupId = camera.getGroupId();
+
+        String coordinates = camera.getCoordinates();
+        String[] coord = coordinates.trim().split("\\s*(=>|,|\\s)\\s*");
+        BigDecimal longitude = new BigDecimal(coord[0]);
+        BigDecimal latitude = new BigDecimal(coord[1]);
+
+        PreparedStatement prepareStatement;
+
+        String groupName = camera.getGroupName();
+        String territoryName = camera.getTerritoryName();
+
+        try (Connection connection = dataSource.getConnection()) {
+            prepareStatement = connection.prepareStatement(prepareSQL);
+
+            prepareStatement.setString(1, oldId);
+            prepareStatement.setString(2, id);
+            prepareStatement.setString(3, cameraName);
+            prepareStatement.setString(4, placeText);
+            prepareStatement.setBigDecimal(5, latitude);
+            prepareStatement.setBigDecimal(6, longitude);
+            prepareStatement.setString(7, comment);
+            prepareStatement.setBigDecimal(8, recognizePercent);
+            prepareStatement.setBigDecimal(9, territoryId);
+            prepareStatement.setBigDecimal(10, groupId);
+            prepareStatement.setBigDecimal(11, azimut);
+
+            prepareStatement.execute();
+            prepareStatement.close();
+            logger.info("Данные для камеры № " + oldId + " успешно обновлены.");
+        } catch (SQLException e) {
+            logger.error("Ошибка при попытке обновления. Информация не обновлена. " + e.getLocalizedMessage());
+            logger.error("ID камеры неудавшейся попытки = " + oldId);
+            e.printStackTrace();
+        }
+    }
+
+    public String createCamera(Camera newCamera) {
+        String sql = "SELECT face_control.create_new_camera(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        PreparedStatement preparedStatement = null;
+        String status;
+        try (Connection connection = dataSource.getConnection()) {
+            preparedStatement = connection.prepareStatement(sql);
+            String id = newCamera.getId();
+            if (checkForEmptyString(id) != null) {
+                preparedStatement.setString(1, id);
+            } else {
+                preparedStatement.setNull(1, Types.VARCHAR);
+            }
+            String newCameraName = newCamera.getName();
+            if (checkForEmptyString(newCameraName) != null) {
+                preparedStatement.setString(2, newCameraName);
+            } else {
+                preparedStatement.setNull(2, Types.VARCHAR);
+            }
+            String placeText = newCamera.getPlaceText();
+            if (checkForEmptyString(placeText) != null) {
+                preparedStatement.setString(3, placeText);
+            } else {
+                preparedStatement.setNull(3, Types.VARCHAR);
+            }
+            String[] choosenCoordinates = newCamera.getCoordinates().trim().split("\\s*(=>|,|\\s)\\s*");
+            if (choosenCoordinates.length != 2) {
+                preparedStatement.setNull(4, Types.NUMERIC);
+                preparedStatement.setNull(5, Types.NUMERIC);
+            } else {
+                BigDecimal longitude = new BigDecimal(choosenCoordinates[0]);
+                BigDecimal latitude = new BigDecimal(choosenCoordinates[1]);
+                preparedStatement.setBigDecimal(4, latitude);
+                preparedStatement.setBigDecimal(5, longitude);
+            }
+            preparedStatement.setString(6, newCamera.getComment());
+            preparedStatement.setBigDecimal(7, newCamera.getRecognizePercent());
+            preparedStatement.setBigDecimal(8, newCamera.getTerritoryId());
+            preparedStatement.setBigDecimal(9, newCamera.getGroupId());
+            preparedStatement.setBigDecimal(10, newCamera.getAzimut());
+
+            preparedStatement.execute();
+
+            logger.info("Камера успешно создана");
+            status = "OK";
+        } catch (SQLException e) {
+            logger.error(e.getLocalizedMessage());
+            status = "BAD";
+            e.printStackTrace();
+            return status;
+        }
+        return status;
+    }
+
+    public void deleteCamera(String id) {
+        String prepareSQL = "SELECT face_control.delete_camera(?)";
+        PreparedStatement preparedStatement = null;
+        try (Connection connection = dataSource.getConnection()) {
+            preparedStatement = connection.prepareStatement(prepareSQL);
+            preparedStatement.setString(1, id);
+            preparedStatement.execute();
+            preparedStatement.close();
+            logger.info("Камера с id " + id + " успешно удалена.");
+        } catch (SQLException e) {
+            logger.error("Ошибка при попытка удаления камеры с id: " + id + ".");
+            logger.warn(e.getLocalizedMessage());
+            e.printStackTrace();
+            throw new RuntimeException("id " + id + " не найден в базе данных.");
+        }
+    }
+
+
+    //  *** НЕИСПОЛЬЗУЕМЫЕ МЕТОДЫ:
     public List<Territory> getCamerasJSON() {
         String sql = "SELECT get_cameras cur FROM face_control.get_cameras()";
 
@@ -330,52 +451,6 @@ public class CameraDAO {
     }
 
 
-    public void updateCamera(ChoosenCamera camera) {
-
-        String prepareSQL = "SELECT face_control.update_camera(?,?,?,?,?,?,?,?,?)";
-
-        String oldId = camera.getOldId();
-        String id = camera.getId();
-        String territory = camera.getChoosenTerritory();
-        String group = camera.getChoosenGroup();
-        BigDecimal azimut = camera.getChoosenAzimut();
-        String comment = camera.getComment();
-        BigDecimal recognizePercent = camera.getProcentsOfRecognize();
-        String coordinates = camera.getChoosenCoordinates();
-
-//      TODO
-        String[] coord = coordinates.trim().split("\\s*(=>|,|\\s)\\s*");
-        BigDecimal longitude = new BigDecimal(coord[0]);
-        BigDecimal latitude = new BigDecimal(coord[1]);
-
-        PreparedStatement prepareStatement = null;
-
-        try (Connection connection = dataSource.getConnection()) {
-            prepareStatement = connection.prepareStatement(prepareSQL);
-
-            prepareStatement.setString(1, oldId);
-            prepareStatement.setString(2, id);
-            prepareStatement.setString(3, territory);
-            prepareStatement.setString(4, group);
-            prepareStatement.setBigDecimal(5, azimut);
-            prepareStatement.setString(6, comment);
-            prepareStatement.setBigDecimal(7, recognizePercent);
-
-//          TODO
-            prepareStatement.setBigDecimal(8, longitude);
-            prepareStatement.setBigDecimal(9, latitude);
-
-            prepareStatement.execute();
-            prepareStatement.close();
-            logger.info("Данные для камеры № " + oldId + " успешно обновлены.");
-        } catch (SQLException e) {
-            logger.error("Ошибка при попытке обновления. Информация не обновлена. " + e.getLocalizedMessage());
-            logger.error("ID камеры неудавшейся попытки = " + oldId);
-            e.printStackTrace();
-        }
-    }
-
-
     private int isNewGr(String groupName, List<Group> groups) {
         int index = 0;
         for (Group gr : groups) {
@@ -388,76 +463,6 @@ public class CameraDAO {
         return index;
     }
 
-    public String createCamera(ChoosenCamera newCamera) {
-        String sql = "SELECT face_control.create_new_camera(?, ?, ?, ?, ?, ?, ?, ?)";
-        PreparedStatement preparedStatement = null;
-        String status;
-        try (Connection connection = dataSource.getConnection()) {
-            preparedStatement = connection.prepareStatement(sql);
-
-            String id = newCamera.getId();
-            if (checkForEmptyString(id) != null) {
-                preparedStatement.setString(1, id);
-            } else {
-                preparedStatement.setNull(1, Types.VARCHAR);
-            }
-            String choosenTerritory = newCamera.getChoosenTerritory();
-            if (checkForEmptyString(choosenTerritory) != null) {
-                preparedStatement.setString(2, choosenTerritory);
-            } else {
-                preparedStatement.setNull(2, Types.VARCHAR);
-            }
-            String choosenGroup = newCamera.getChoosenGroup();
-            if (checkForEmptyString(choosenGroup) != null) {
-                preparedStatement.setString(3, choosenGroup);
-            } else {
-                preparedStatement.setNull(3, Types.VARCHAR);
-            }
-            String[] choosenCoordinates = newCamera.getChoosenCoordinates().trim().split("\\s*(=>|,|\\s)\\s*");
-
-            if (choosenCoordinates.length != 2) {
-                preparedStatement.setNull(4, Types.NUMERIC);
-                preparedStatement.setNull(5, Types.NUMERIC);
-            } else {
-                BigDecimal longitude = new BigDecimal(choosenCoordinates[0]);
-                BigDecimal latitude = new BigDecimal(choosenCoordinates[1]);
-                preparedStatement.setBigDecimal(4, latitude);
-                preparedStatement.setBigDecimal(5, longitude);
-            }
-            preparedStatement.setString(6, newCamera.getComment());
-            preparedStatement.setBigDecimal(7, newCamera.getProcentsOfRecognize());
-            preparedStatement.setBigDecimal(8, newCamera.getChoosenAzimut());
-
-            preparedStatement.execute();
-
-            logger.info("Камера успешно создана");
-            status = "OK";
-        } catch (SQLException e) {
-            logger.error(e.getLocalizedMessage());
-            status = "BAD";
-            e.printStackTrace();
-            return status;
-        }
-        return status;
-    }
-
-    @SuppressWarnings("Бросает исключение")
-    public void deleteCamera(String id) {
-        String prepareSQL = "SELECT face_control.delete_camera(?)";
-        PreparedStatement preparedStatement = null;
-        try (Connection connection = dataSource.getConnection()) {
-            preparedStatement = connection.prepareStatement(prepareSQL);
-            preparedStatement.setString(1, id);
-            preparedStatement.execute();
-            preparedStatement.close();
-            logger.info("Камера с id " + id + " успешно удалена.");
-        } catch (SQLException e) {
-            logger.error("Ошибка при попытка удаления камеры с id: " + id + ".");
-            logger.warn(e.getLocalizedMessage());
-//            e.printStackTrace();
-            throw new RuntimeException("id " + id + " не найден в базе данных.");
-        }
-    }
 
     public String checkForEmptyString(String text) {
         text = text.trim();

@@ -12,7 +12,6 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class Camera {
 
-    @JsonIgnore
     String oldId;
 
     String id;
@@ -21,11 +20,17 @@ public class Camera {
 
     String placeText;
 
-    BigDecimal azimut;
+    String coordinates;
+
+    String comment;
 
     BigDecimal recognizePercent;
 
-    String comment;
+    BigDecimal territoryId;
+
+    BigDecimal groupId;
+
+    BigDecimal azimut;
 
     @JsonIgnore
     BigDecimal longitude;
@@ -34,16 +39,13 @@ public class Camera {
     BigDecimal latitude;
 
 //    @JsonIgnore
-    BigDecimal territoryId;
 
     String territoryName;
 
 //    @JsonIgnore
-    BigDecimal groupId;
 
     String groupName;
 
-    String coordinates;
 
     public Camera(String id, BigDecimal azimut, BigDecimal recognizePercent, String comment, BigDecimal longitude, BigDecimal latitude, String coordinates) {
         this.id = id;

@@ -46,19 +46,21 @@ public class CamerasController {
     }
 
     @RequestMapping(value = "/updateCamera", method = RequestMethod.POST)
-    public ResponseEntity<String> updateCamera(@RequestBody ChoosenCamera camera) {
+    public ResponseEntity<String> updateCamera(@RequestBody Camera camera) {
         try {
             cameraDAO.updateCamera(camera);
         } catch (Exception e) {
+            e.printStackTrace();
             logger.error(e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
     @RequestMapping(value = "/createCamera", method = RequestMethod.POST)
-    public ResponseEntity<String> createCamera(@RequestBody ChoosenCamera camera) {
+    public ResponseEntity<String> createCamera(@RequestBody Camera camera) {
         try {
-            logger.info("camera = " + String.valueOf(camera));
+//            logger.info("camera = " + String.valueOf(camera.getId()));
             String status = cameraDAO.createCamera(camera);
             if (status.equals("OK")) {
                 return ResponseEntity.status(HttpStatus.CREATED).build();

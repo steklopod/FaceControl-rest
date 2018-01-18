@@ -91,7 +91,7 @@ public class KeywordsDAO {
         return keyWords;
     }
 
-
+//TODO - заменить класс ChoosenCamera на класс Camera
     public List<ChoosenCamera> selectAllCameras() {
         String sql = "SELECT get_cameras cur FROM face_control.get_cameras()";
         List<ChoosenCamera> camerasList = new ArrayList<>();

@@ -24,10 +24,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.net.URLDecoder;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Types;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,7 +41,6 @@ public class FaceControlTest {
     CameraDAO cameraDAO;
     @Autowired
     KeywordsDAO keywordsDAO;
-
     @Autowired
     @Qualifier("FaceControlDC")
     DataSource dataSource;
@@ -53,11 +48,10 @@ public class FaceControlTest {
     MapDAO mapDAO;
 
     @Test
-    void getStatusList(){
+    void getStatusList() {
         List<Status> cameraStatusList = mapDAO.getCameraStatus();
         System.err.println(cameraStatusList);
     }
-
 
     @Test
     @DisplayName("Названия территорий")
@@ -103,10 +97,9 @@ public class FaceControlTest {
 
     @Test
     @Transactional
+    @Disabled
     void createNewCamera() {
-        ChoosenCamera choosenCamera = new ChoosenCamera("1-junit-test", "террит-тест",
-                "define-тест", "34.5555534    55.00", "comment--тест",
-                new BigDecimal("33.00"), new BigDecimal("360"));
+        Camera choosenCamera = new Camera();
         String statusOfUpdate = cameraDAO.createCamera(choosenCamera);
         System.err.println("statusOfUpdate = " + statusOfUpdate);
     }
@@ -137,9 +130,9 @@ public class FaceControlTest {
 
     @Test
     void testConverting() {
-        ChoosenCamera newCamera = new ChoosenCamera();
-        newCamera.setChoosenCoordinates("  55.753963  , 37.620330   ");
-        String[] choosenCoordinates = newCamera.getChoosenCoordinates().trim().split("\\s*(=>|,|\\s)\\s*");
+        Camera newCamera = new Camera();
+        newCamera.setCoordinates("37.41475, 55.81977");
+        String[] choosenCoordinates = newCamera.getCoordinates().trim().split("\\s*(=>|,|\\s)\\s*");
         if (choosenCoordinates.length != 2) {
             logger.warn("После обработки координт должно быть 2 объекта.");
 
@@ -148,44 +141,6 @@ public class FaceControlTest {
             BigDecimal longitude = new BigDecimal(choosenCoordinates[1]);
             logger.info(String.valueOf(latitude));
             logger.info(String.valueOf(longitude));
-        }
-    }
-
-    @Test
-    @Transactional
-    @Disabled
-    void testSqlInsert() {
-        ChoosenCamera newCamera = new ChoosenCamera("1-junit-test", "террит-тест",
-                "define-тест", "34.5555534    55.00", "comment--тест",
-                new BigDecimal("33.00"), new BigDecimal("360"));
-
-        String sql = "SELECT face_control.create_new_camera(?, ?, ?, ?, ?, ?, ?, ?)";
-        PreparedStatement preparedStatement = null;
-        try (Connection connection = dataSource.getConnection()) {
-
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setString(1, newCamera.getId());
-            preparedStatement.setString(2, newCamera.getChoosenTerritory());
-            preparedStatement.setString(3, newCamera.getChoosenGroup());
-
-            String[] choosenCoordinates = newCamera.getChoosenCoordinates().trim().split("\\s+");
-
-            if (choosenCoordinates.length != 2) {
-                preparedStatement.setNull(4, Types.NUMERIC);
-                preparedStatement.setNull(5, Types.NUMERIC);
-            } else {
-                BigDecimal latitude = new BigDecimal(choosenCoordinates[0]);
-                BigDecimal longitude = new BigDecimal(choosenCoordinates[1]);
-                preparedStatement.setBigDecimal(4, latitude);
-                preparedStatement.setBigDecimal(5, longitude);
-            }
-            preparedStatement.setString(6, newCamera.getComment());
-            preparedStatement.setBigDecimal(7, newCamera.getProcentsOfRecognize());
-            preparedStatement.setBigDecimal(8, newCamera.getChoosenAzimut());
-            preparedStatement.execute();
-
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
     }
 
@@ -208,10 +163,11 @@ public class FaceControlTest {
         List<Camera> allCameras = cameraDAO.getAllCameras();
 //        allCameras.forEach(System.err::println);
     }
+
     @Test
     void getCamerasTree() {
         List<Territory> camerasTree = cameraDAO.getCamerasTree();
-        System.err.println(camerasTree);
+//        System.err.println(camerasTree);
     }
 
 }
