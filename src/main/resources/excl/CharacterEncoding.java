@@ -1,4 +1,4 @@
-package ru.stdpr.fc.connection;
+package ru.stdpr.fc.controllers;
 
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;

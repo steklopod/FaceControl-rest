@@ -46,6 +46,11 @@ public class Camera {
 
     String groupName;
 
+    public Camera(String oldId, String id, String name) {
+        this.oldId = oldId;
+        this.id = id;
+        this.name = name;
+    }
 
     public Camera(String id, BigDecimal azimut, BigDecimal recognizePercent, String comment, BigDecimal longitude, BigDecimal latitude, String coordinates) {
         this.id = id;

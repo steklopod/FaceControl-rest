@@ -3,6 +3,7 @@ package ru.stdpr.fc.controllers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,7 +11,10 @@ import ru.stdpr.fc.entities.*;
 import ru.stdpr.fc.repository.CameraDAO;
 import ru.stdpr.fc.repository.KeywordsDAO;
 import ru.stdpr.fc.repository.MapDAO;
+import ru.stdpr.fc.repository.TerritoryDAO;
 
+import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -25,39 +29,60 @@ public class CamerasController {
     KeywordsDAO keywordsDAO;
     @Autowired
     MapDAO mapDAO;
+    @Autowired
+    TerritoryDAO territoryDAO;
+
+    @Value("${classes.start.with}")
+    String classStartWith;
 
     @GetMapping(value = "/getCameras")
     public List<Territory> getCameras() {
-        List<Territory> extraPhotos = cameraDAO.getCamerasTree();
+        List<Territory> extraPhotos = null;
+        try {
+            extraPhotos = cameraDAO.getCamerasTree();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return extraPhotos;
     }
 
     @GetMapping(value = "/getAllCameras")
     public List<Camera> getAllCameras() {
-        List<Camera> allCameras = cameraDAO.getAllCameras();
+        List<Camera> allCameras = null;
+        try {
+            allCameras = cameraDAO.getAllCameras();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return allCameras;
     }
 
     @GetMapping(value = "/getGroups")
     public List<GroupDiction> getGroups() {
-        List<GroupDiction> groups = cameraDAO.getGroups();
+        List<GroupDiction> groups = null;
+        try {
+            groups = cameraDAO.getGroups();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return groups;
     }
 
-    @RequestMapping(value = "/updateCamera", method = RequestMethod.POST)
-    public ResponseEntity<String> updateCamera(@RequestBody Camera camera) {
+    @PostMapping(value = "/updateCamera")
+    public ResponseEntity updateCamera(@RequestBody Camera camera) {
         try {
             cameraDAO.updateCamera(camera);
         } catch (Exception e) {
-            e.printStackTrace();
-            logger.error(e.getMessage());
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            Exception exception = parseException(e);
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(exception);
         }
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
-    @RequestMapping(value = "/createCamera", method = RequestMethod.POST)
-    public ResponseEntity<String> createCamera(@RequestBody Camera camera) {
+    @PostMapping(value = "/createCamera")
+    public ResponseEntity createCamera(@RequestBody Camera camera) {
         try {
 //            logger.info("camera = " + String.valueOf(camera.getId()));
             String status = cameraDAO.createCamera(camera);
@@ -71,20 +96,16 @@ public class CamerasController {
         return ResponseEntity.status(HttpStatus.CONFLICT).build();
     }
 
+
     @GetMapping(value = "/getKeywords")
     public Set<KeyWords> getKeywords() {
         Set<KeyWords> keyWordsObjects = keywordsDAO.getKeyWords();
         return keyWordsObjects;
     }
 
-    @GetMapping(value = "/getTerritories")
-    public List<TerritoryDiction> getTerritories() {
-        List<TerritoryDiction> territories = cameraDAO.getTerritories();
-        return territories;
-    }
 
     @RequestMapping(value = "/deleteCamera/{id}", method = RequestMethod.DELETE)
-    public ResponseEntity<String> deleteCamera(@PathVariable String id) {
+    public ResponseEntity deleteCamera(@PathVariable String id) {
         try {
             String decodeId = new String(id.getBytes("ISO-8859-1"), "UTF-8");
             logger.info("Получен id: " + id + " для удаления." + "| Id после декодирования: " + decodeId + ".");
@@ -99,7 +120,12 @@ public class CamerasController {
     @SuppressWarnings("Первая версия, устаревшая")
     @GetMapping(value = "/getCamerasTree")
     public List<Territory> getCamerasTree() {
-        List<Territory> extraPhotos = cameraDAO.getCamerasJSON();
+        List<Territory> extraPhotos = null;
+        try {
+            extraPhotos = cameraDAO.getCamerasJSON();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return extraPhotos;
     }
 
@@ -109,5 +135,22 @@ public class CamerasController {
         return cameraStatusList;
     }
 
+    public Exception parseException(Exception e){
+        String localizedMessage = e.getMessage();
+        String[] wheres = localizedMessage.split("Where");
+        String reason;
+        if (wheres.length > 1) {
+            reason = wheres[0];
+        } else {
+            reason = localizedMessage;
+        }
+        StackTraceElement[] mistakes = Arrays.stream(e.getStackTrace())
+                .filter(s -> s.getClassName().startsWith(classStartWith) && !s.getClassName().contains("$"))
+                .toArray(StackTraceElement[]::new);
+        Exception exception = new Exception(reason);
+        exception.setStackTrace(mistakes);
+        exception.printStackTrace();
+        return exception;
+    }
 
 }

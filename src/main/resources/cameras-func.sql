@@ -60,20 +60,31 @@ CREATE OR REPLACE FUNCTION face_control.update_camera(
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  UPDATE face_control.s_cameras
-  SET
-    camera       = p_id,
-    name         = p_name,
-    place_text   = p_place_text,
-    latitude     = p_latitude,
-    longitude    = p_longitude,
-    note         = p_note,
-    min_proc     = p_min_proc,
-    territory_id = p_terr_id,
-    group_id     = p_group_id,
-    azimut       = p_azimut
-
+  PERFORM 1
+  FROM face_control.s_camera_territory
   WHERE camera = p_old_id;
+  IF FOUND
+  THEN
+    UPDATE face_control.s_cameras
+    SET
+      camera       = p_id,
+      name         = p_name,
+      place_text   = p_place_text,
+      latitude     = p_latitude,
+      longitude    = p_longitude,
+      note         = p_note,
+      min_proc     = p_min_proc,
+      territory_id = p_terr_id,
+      group_id     = p_group_id,
+      azimut       = p_azimut
+
+    WHERE camera = p_old_id;
+    RETURN;
+  ELSE
+    RAISE EXCEPTION USING MESSAGE = 'Камера с данным id не найдена.';
+    RAISE NOTICE 'Проверьте правильность id.';
+    RETURN;
+  END IF;
 END;
 $$;
 

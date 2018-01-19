@@ -4,15 +4,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import ru.stdpr.fc.entities.*;
 
 import javax.sql.DataSource;
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.*;
 import java.util.*;
-import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 @Repository
@@ -24,18 +24,18 @@ public class CameraDAO {
     @Qualifier("FaceControlDC")
     private DataSource dataSource;
 
-    private List<String> temporaryTerritoryList = new ArrayList<>();
+    @Autowired
+    TerritoryDAO territoryDAO;
+
+    @Value("${nameOfEmptyTerritory}")
+    private String nameOfEmptyTerritory;
 
     private String nameOfEmptyGroup = "* Группа не задана";
-    private String nameOfEmptyTerritory = "* Территория не задана";
+
+    private List<TerritoryDiction> territoryDictList = new ArrayList<>();
 
 
-    static <T> void replaceIf(List<T> list, Predicate<? super T> pred, UnaryOperator<T> op) {
-        list.replaceAll(t -> pred.test(t) ? op.apply(t) : t);
-    }
-
-
-    public List<GroupDiction> getGroups() {
+    public List<GroupDiction> getGroups() throws SQLException {
         List<GroupDiction> groupList = new ArrayList<>();
 
         groupList.add(new GroupDiction(nameOfEmptyGroup));
@@ -55,8 +55,6 @@ public class CameraDAO {
                 GroupDiction groupDiction = new GroupDiction(id, groupName, territoryId, groupDefine);
                 groupList.add(groupDiction);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
         List<GroupDiction> filterdGroups = groupList.stream()
                 .distinct()
@@ -66,43 +64,9 @@ public class CameraDAO {
         return filterdGroups;
     }
 
-    public List<TerritoryDiction> getTerritories() {
-        List<TerritoryDiction> territoryList = new ArrayList<>();
-//        territoryList.add(new TerritoryDiction(nameOfEmptyTerritory));
 
-        String sql = "SELECT * FROM face_control.s_camera_territory";
-        try (Connection connection = dataSource.getConnection()) {
-            connection.setAutoCommit(false);
-            logger.info(">>>GET запрос на получение территорий: " + sql);
-            Statement statement = connection.createStatement();
-            ResultSet rs = statement.executeQuery(sql);
-            while (rs.next()) {
-                BigDecimal id = rs.getBigDecimal("territory_id");
-                String territoryName = rs.getString("territory_name");
-                if (territoryName == null) {
-                    territoryName = "Без имени";
-                }
-                String territoryDefine = rs.getString("territory_define");
-                TerritoryDiction territoryDiction = new TerritoryDiction(id, territoryName, territoryDefine);
-                territoryList.add(territoryDiction);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        List<TerritoryDiction> filteredTerritories = territoryList.stream()
-                .distinct()
-                .sorted(Comparator.comparing(TerritoryDiction::getName, Comparator.nullsLast(Comparator.naturalOrder())))
-                .collect(Collectors.toList());
-        filteredTerritories.add(new TerritoryDiction(nameOfEmptyTerritory));
-        return filteredTerritories;
-    }
-
-
-    public List<Territory> getCamerasTree() {
+    public List<Territory> getCamerasTree() throws SQLException {
         List<Territory> tree = new ArrayList<>();
-
-        List<TerritoryDiction> territoryDictList = getTerritories();
 
         List<GroupDiction> groupsList = getGroups();
         List<Camera> allCameras = getAllCameras();
@@ -116,7 +80,7 @@ public class CameraDAO {
                     .filter(t -> t.getId() == ter)
                     .findAny()
                     .map(TerritoryDiction::getName)
-                    .orElse(nameOfEmptyTerritory);
+                    .orElse(getNameOfEmptyTerritory());
 
             String terrDefine = territoryDictList.stream()
                     .filter(t -> t.getId() == ter)
@@ -152,24 +116,23 @@ public class CameraDAO {
             if (terrDefine.equals("")) {
                 terrDefine = null;
             }
-
             Territory territory = new Territory(ter, territoryname, terrDefine, filteredGroups);
             tree.add(territory);
         }
         tree.sort(Comparator.comparing(Territory::getTerritory));
-        if (tree.get(0).getTerritory().equals(nameOfEmptyTerritory)) {
+        if (tree.get(0).getTerritory().equalsIgnoreCase(getNameOfEmptyTerritory())) {
             Collections.rotate(tree, -1);
         }
+        territoryDictList.clear();
         return tree;
     }
 
 
-    public List<Camera> getAllCameras() {
+    public List<Camera> getAllCameras() throws SQLException {
         String sql = "SELECT * FROM face_control.s_cameras";
 
         List<Camera> cameras = new ArrayList<>();
-//      Словари из БД:
-        List<TerritoryDiction> territories = getTerritories();
+        territoryDictList = territoryDAO.getTerritories();
         List<GroupDiction> groupsList = getGroups();
 
         try (Connection connection = dataSource.getConnection()) {
@@ -189,11 +152,11 @@ public class CameraDAO {
                 String coordinates = String.valueOf(longitude) + ", " + String.valueOf(latitude);
                 String cameraName = rs.getString("name");
 
-                String territoryName = territories.stream()
+                String territoryName = territoryDictList.stream()
                         .filter((p) -> p.getId() == territoryId)
                         .findFirst()
                         .map(TerritoryDiction::getName)
-                        .orElse(nameOfEmptyTerritory);
+                        .orElse(getNameOfEmptyTerritory());
 //                territoryName = territoryName.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
 
                 BigDecimal groupId = rs.getBigDecimal("group_id");
@@ -211,19 +174,14 @@ public class CameraDAO {
                 cameras.add(camera);
             }
             connection.commit();
-        } catch (SQLException e) {
-            logger.error("Ошибка при обращении к базе данных в момент получения фотографий. ");
-            logger.warn(e.getLocalizedMessage());
         }
         logger.info("Информация со списком отправлена в ответ на GET запрос.");
-
         cameras.sort(Comparator.comparing(Camera::getId));
-
         return cameras;
     }
 
 
-    public void updateCamera(Camera camera) {
+    public void updateCamera(Camera camera) throws Exception {
 
         String prepareSQL = "SELECT face_control.update_camera(?,?,?,?,?,?,?,?,?,?,?)";
 
@@ -250,7 +208,9 @@ public class CameraDAO {
         try (Connection connection = dataSource.getConnection()) {
             prepareStatement = connection.prepareStatement(prepareSQL);
 
+//            TODO - проверка ошибок на клиенте:
             prepareStatement.setString(1, oldId);
+//            prepareStatement.setString(1, groupName);
             prepareStatement.setString(2, id);
             prepareStatement.setString(3, cameraName);
             prepareStatement.setString(4, placeText);
@@ -265,14 +225,10 @@ public class CameraDAO {
             prepareStatement.execute();
             prepareStatement.close();
             logger.info("Данные для камеры № " + oldId + " успешно обновлены.");
-        } catch (SQLException e) {
-            logger.error("Ошибка при попытке обновления. Информация не обновлена. " + e.getLocalizedMessage());
-            logger.error("ID камеры неудавшейся попытки = " + oldId);
-            e.printStackTrace();
         }
     }
 
-    public String createCamera(Camera newCamera) {
+    public String createCamera(Camera newCamera) throws SQLException {
         String sql = "SELECT face_control.create_new_camera(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         PreparedStatement preparedStatement = null;
         String status;
@@ -316,16 +272,11 @@ public class CameraDAO {
 
             logger.info("Камера успешно создана");
             status = "OK";
-        } catch (SQLException e) {
-            logger.error(e.getLocalizedMessage());
-            status = "BAD";
-            e.printStackTrace();
-            return status;
         }
         return status;
     }
 
-    public void deleteCamera(String id) {
+    public void deleteCamera(String id) throws SQLException {
         String prepareSQL = "SELECT face_control.delete_camera(?)";
         PreparedStatement preparedStatement = null;
         try (Connection connection = dataSource.getConnection()) {
@@ -334,22 +285,30 @@ public class CameraDAO {
             preparedStatement.execute();
             preparedStatement.close();
             logger.info("Камера с id " + id + " успешно удалена.");
-        } catch (SQLException e) {
-            logger.error("Ошибка при попытка удаления камеры с id: " + id + ".");
-            logger.warn(e.getLocalizedMessage());
-            e.printStackTrace();
-            throw new RuntimeException("id " + id + " не найден в базе данных.");
         }
     }
 
 
-    //  *** НЕИСПОЛЬЗУЕМЫЕ МЕТОДЫ:
-    public List<Territory> getCamerasJSON() {
+    private String getNameOfEmptyTerritory() {
+        String decode = null;
+        try {
+            decode = new String(nameOfEmptyTerritory.getBytes("ISO-8859-1"), "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return decode;
+    }
+
+
+    //  ************** НЕИСПОЛЬЗУЕМЫЕ МЕТОДЫ:
+    public List<Territory> getCamerasJSON() throws SQLException {
+        List<String> temporaryTerritoryList = new ArrayList<>();
+
         String sql = "SELECT get_cameras cur FROM face_control.get_cameras()";
 
         List<Territory> camerasJSON = new ArrayList<>();
 //      Словари из БД:
-        List<TerritoryDiction> territories = getTerritories();
+        List<TerritoryDiction> territories = territoryDAO.getTerritories();
         List<GroupDiction> groupsList = getGroups();
 
         try (Connection connection = dataSource.getConnection()) {
@@ -371,7 +330,7 @@ public class CameraDAO {
                         .filter((p) -> p.getId() == territoryId && p.getId() != null)
                         .findFirst()
                         .map(TerritoryDiction::getName)
-                        .orElse(nameOfEmptyTerritory);
+                        .orElse(getNameOfEmptyTerritory());
 //                territoryName = territoryName.substring(0, 1).toUpperCase() + territoryName.substring(1).toLowerCase();
 
                 BigDecimal groupId = refCursor.getBigDecimal("group_id");
@@ -398,7 +357,7 @@ public class CameraDAO {
                 Territory newTerritory = new Territory(territoryId, territoryName, groups);
 
 //              Если территория новая:
-                if (isNewTerritory(territoryName)) {
+                if (isNewTerritory(territoryName, temporaryTerritoryList)) {
                     List<Camera> cameras = new ArrayList<>();
 
                     temporaryTerritoryList.add(territoryName);
@@ -451,7 +410,7 @@ public class CameraDAO {
     }
 
 
-    private boolean isNewTerritory(String territory) {
+    private boolean isNewTerritory(String territory, List<String> temporaryTerritoryList) {
         boolean exist = true;
         for (String ter : temporaryTerritoryList) {
             if (ter.equalsIgnoreCase(territory)) {

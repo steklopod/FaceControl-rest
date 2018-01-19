@@ -1,8 +1,5 @@
 package ru.stdpr.fc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.runner.JUnitPlatform;
@@ -10,17 +7,15 @@ import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.transaction.annotation.Transactional;
-import ru.stdpr.fc.entities.*;
-import ru.stdpr.fc.repository.CameraDAO;
+import ru.stdpr.fc.entities.Camera;
+import ru.stdpr.fc.entities.ChoosenCamera;
+import ru.stdpr.fc.entities.KeyWords;
+import ru.stdpr.fc.entities.Status;
 import ru.stdpr.fc.repository.KeywordsDAO;
 import ru.stdpr.fc.repository.MapDAO;
 
-import javax.sql.DataSource;
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.net.URLDecoder;
@@ -28,24 +23,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
 @RunWith(JUnitPlatform.class)
-@Transactional
-public class FaceControlTest {
-    private static Logger logger = LoggerFactory.getLogger(FaceControlTest.class);
+class OthterTests {
+    private static Logger logger = LoggerFactory.getLogger(OthterTests.class);
 
-    @Autowired
-    CameraDAO cameraDAO;
     @Autowired
     KeywordsDAO keywordsDAO;
     @Autowired
-    @Qualifier("FaceControlDC")
-    DataSource dataSource;
-    @Autowired
     MapDAO mapDAO;
+
 
     @Test
     void getStatusList() {
@@ -54,21 +42,12 @@ public class FaceControlTest {
     }
 
     @Test
-    @DisplayName("Названия территорий")
-    void getTerrNames() {
-        List<TerritoryDiction> territories = cameraDAO.getTerritories();
-        System.err.println(territories);
+    void insertKeywords() {
+        keywordsDAO.parseKeywords();
     }
 
     @Test
-    @DisplayName("Проверка получения из БД")
-    void printValue() {
-        List<Territory> allCameras = cameraDAO.getCamerasJSON();
-        System.err.println(allCameras);
-    }
-
-    @Test
-    void testKeywords() throws IOException {
+    void testKeywords() {
         List<ChoosenCamera> choosenCameras = keywordsDAO.selectAllCameras();
         HashSet<String> strings = keywordsDAO.convertObjectToString(choosenCameras);
 
@@ -77,43 +56,11 @@ public class FaceControlTest {
     }
 
     @Test
-    void insertKeywords() {
-        keywordsDAO.parseKeywords();
-    }
-
-    @Test
     void getCamerasId() {
         Set<KeyWords> ids = keywordsDAO.getKeyWords();
         System.err.println(ids);
     }
 
-    @Test
-    @DisplayName("Проверка JSON")
-    @Disabled
-    void testJSON() throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        List<Territory> allCameras = cameraDAO.getCamerasJSON();
-    }
-
-    @Test
-    @Transactional
-    @Disabled
-    void createNewCamera() {
-        Camera choosenCamera = new Camera();
-        String statusOfUpdate = cameraDAO.createCamera(choosenCamera);
-        System.err.println("statusOfUpdate = " + statusOfUpdate);
-    }
-
-    @Test
-//    @Disabled
-    @DisplayName("Ожидаем исключение")
-    void delete() {
-        String id = "Не существующий id";
-        Throwable exception = assertThrows(RuntimeException.class, () -> {
-            cameraDAO.deleteCamera(id);
-        });
-//        assertEquals("a message", exception.getMessage());
-    }
 
     @Test
     void encode() throws UnsupportedEncodingException {
@@ -144,7 +91,6 @@ public class FaceControlTest {
         }
     }
 
-
     @Test
     void testString() {
         String a = "qwe";
@@ -152,22 +98,5 @@ public class FaceControlTest {
         System.err.println(a);
     }
 
-    @Test
-    void getGroupsKeyWords() {
-        List<GroupDiction> groups = cameraDAO.getGroups();
-        groups.forEach(System.err::println);
-    }
-
-    @Test
-    void getAllCameras() {
-        List<Camera> allCameras = cameraDAO.getAllCameras();
-//        allCameras.forEach(System.err::println);
-    }
-
-    @Test
-    void getCamerasTree() {
-        List<Territory> camerasTree = cameraDAO.getCamerasTree();
-//        System.err.println(camerasTree);
-    }
 
 }

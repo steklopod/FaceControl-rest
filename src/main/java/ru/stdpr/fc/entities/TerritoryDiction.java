@@ -10,6 +10,9 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Data
 public class TerritoryDiction {
+
+    BigDecimal oldId;
+
     BigDecimal id;
 
     String name;
@@ -18,5 +21,11 @@ public class TerritoryDiction {
 
     public TerritoryDiction(String name) {
         this.name = name;
+    }
+
+    public TerritoryDiction(BigDecimal id, String name, String define) {
+        this.id = id;
+        this.name = name;
+        this.define = define;
     }
 }
