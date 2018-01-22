@@ -1,9 +1,6 @@
 package ru.stdpr.fc;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.runner.JUnitPlatform;
 import org.junit.runner.RunWith;
@@ -33,6 +30,7 @@ import java.util.List;
 @RunWith(JUnitPlatform.class)
 @Transactional
 @Rollback
+@Disabled
 class TerritorytestTest {
     private static Logger logger = LoggerFactory.getLogger(TerritorytestTest.class);
 
@@ -42,13 +40,6 @@ class TerritorytestTest {
     @Autowired
     TerritoryDAO territoryDAO;
 
-    List<TerritoryDiction> territories = new ArrayList<>();
-
-    @BeforeAll
-    void makeList() throws SQLException {
-        List<TerritoryDiction> territories = territoryDAO.getTerritories();
-        this.territories = territories;
-    }
 
 
     @Test
@@ -76,14 +67,10 @@ class TerritorytestTest {
 
         try {
             territoryDAO.updateTerritory(territoryDiction);
-        }catch (Exception e){
+        } catch (Exception e) {
             logger.error(">>>>>>>>>>>>> Fuck");
         }
     }
 
-    @AfterAll
-    void clearList(){
-        this.territories.clear();
-    }
 
 }

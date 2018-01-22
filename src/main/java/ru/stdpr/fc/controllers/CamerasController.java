@@ -8,10 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.stdpr.fc.entities.*;
-import ru.stdpr.fc.repository.CameraDAO;
-import ru.stdpr.fc.repository.KeywordsDAO;
-import ru.stdpr.fc.repository.MapDAO;
-import ru.stdpr.fc.repository.TerritoryDAO;
+import ru.stdpr.fc.repository.*;
 
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -31,6 +28,8 @@ public class CamerasController {
     MapDAO mapDAO;
     @Autowired
     TerritoryDAO territoryDAO;
+    @Autowired
+    GroupDAO groupDAO;
 
     @Value("${classes.start.with}")
     String classStartWith;
@@ -61,7 +60,7 @@ public class CamerasController {
     public List<GroupDiction> getGroups() {
         List<GroupDiction> groups = null;
         try {
-            groups = cameraDAO.getGroups();
+            groups = groupDAO.getGroups();
         } catch (SQLException e) {
             e.printStackTrace();
         }

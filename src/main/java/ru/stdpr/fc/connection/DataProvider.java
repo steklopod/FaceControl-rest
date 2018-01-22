@@ -38,7 +38,6 @@ public class DataProvider {
     @Value("${pool.max.lifetime}")
     private int lifetime;
 
-
     @Bean(name = "FaceControlDC")
     @Primary
     public DataSource dataSource() {

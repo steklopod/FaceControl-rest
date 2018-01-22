@@ -17,6 +17,7 @@ import ru.stdpr.fc.entities.Camera;
 import ru.stdpr.fc.entities.GroupDiction;
 import ru.stdpr.fc.entities.Territory;
 import ru.stdpr.fc.repository.CameraDAO;
+import ru.stdpr.fc.repository.GroupDAO;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
@@ -33,6 +34,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @Rollback
 public class CamerasTest {
     private static Logger logger = LoggerFactory.getLogger(CamerasTest.class);
+
+    @Autowired
+    GroupDAO groupDAO;
 
     @Autowired
     CameraDAO cameraDAO;
@@ -94,7 +98,7 @@ public class CamerasTest {
     }
 
     @Test
-//    @Disabled
+    @Disabled
     @DisplayName("Ожидаем исключение")
     void delete() {
         String id = "Не существующий id";
@@ -105,18 +109,13 @@ public class CamerasTest {
     }
 
     @Test
-    void getGroupsKeyWords() throws SQLException {
-        List<GroupDiction> groups = cameraDAO.getGroups();
-        groups.forEach(System.err::println);
-    }
-
-    @Test
     void getAllCameras() throws SQLException {
         List<Camera> allCameras = cameraDAO.getAllCameras();
 //        allCameras.forEach(System.err::println);
     }
 
     @Test
+//    @RepeatedTest(600)
     void getCamerasTree() throws SQLException {
         List<Territory> camerasTree = cameraDAO.getCamerasTree();
 //        System.err.println(camerasTree);

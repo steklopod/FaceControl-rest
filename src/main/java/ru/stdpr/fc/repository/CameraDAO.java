@@ -1,5 +1,7 @@
 package ru.stdpr.fc.repository;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 @Repository
@@ -27,113 +30,135 @@ public class CameraDAO {
     @Autowired
     TerritoryDAO territoryDAO;
 
+    @Autowired
+    GroupDAO groupDAO;
+
     @Value("${nameOfEmptyTerritory}")
     private String nameOfEmptyTerritory;
 
     private String nameOfEmptyGroup = "* Группа не задана";
 
-    private List<TerritoryDiction> territoryDictList = new ArrayList<>();
+    private List<TerritoryDiction> territoryDictList = new CopyOnWriteArrayList<>();
+    private List<GroupDiction> groupsList = new CopyOnWriteArrayList<>();
 
-
-    public List<GroupDiction> getGroups() throws SQLException {
-        List<GroupDiction> groupList = new ArrayList<>();
-
-        groupList.add(new GroupDiction(nameOfEmptyGroup));
-
-        String sql = "SELECT * FROM face_control.s_camera_group";
-        try (Connection connection = dataSource.getConnection()) {
-            connection.setAutoCommit(false);
-            logger.info("Отправлен ответ на GET-запрос, на получение списка групп: " + sql);
-            Statement statement = connection.createStatement();
-            ResultSet rs = statement.executeQuery(sql);
-            while (rs.next()) {
-                BigDecimal id = rs.getBigDecimal("group_id");
-                String groupName = rs.getString("group_name");
-
-                BigDecimal territoryId = rs.getBigDecimal("territory_id");
-                String groupDefine = rs.getString("group_define");
-                GroupDiction groupDiction = new GroupDiction(id, groupName, territoryId, groupDefine);
-                groupList.add(groupDiction);
-            }
-        }
-        List<GroupDiction> filterdGroups = groupList.stream()
-                .distinct()
-                .sorted(Comparator.comparing(GroupDiction::getName))
-                .collect(Collectors.toList());
-        groupList.clear();
-        return filterdGroups;
-    }
-
-
+    @SneakyThrows
     public List<Territory> getCamerasTree() throws SQLException {
+        long startTime = System.currentTimeMillis();
         List<Territory> tree = new ArrayList<>();
 
-        List<GroupDiction> groupsList = getGroups();
-        List<Camera> allCameras = getAllCameras();
+        final ThreadFactory threadFactory = new ThreadFactoryBuilder()
+                .setNameFormat("Поток форм. дерева № %d")
+                .setDaemon(true)
+                .build();
+        ExecutorService executorService = Executors.newFixedThreadPool(2, threadFactory);
 
-        Set<BigDecimal> territoryIds = territoryDictList.stream()
-                .map(TerritoryDiction::getId)
-                .collect(Collectors.toSet());
+        Callable<List<Camera>> getCamerasThread2 = () -> {
+            List<Camera> allCameras = getAllCameras();
+            return allCameras;
+        };
+        Future<List<Camera>> futureAllCameras = executorService.submit(getCamerasThread2);
+        List<Camera> allCameras = futureAllCameras.get(2, TimeUnit.SECONDS);
 
-        for (BigDecimal ter : territoryIds) {
-            String territoryname = territoryDictList.stream()
-                    .filter(t -> t.getId() == ter)
-                    .findAny()
-                    .map(TerritoryDiction::getName)
-                    .orElse(getNameOfEmptyTerritory());
+//      List<Camera> allCameras = getAllCameras();
 
-            String terrDefine = territoryDictList.stream()
-                    .filter(t -> t.getId() == ter)
-                    .findAny()
-                    .map(TerritoryDiction::getDefine)
-                    .orElse("");
 
-            List<Camera> camerasInCurrentTerritory = allCameras.stream()
-                    .filter(cam -> cam.getTerritoryId() == ter)
-                    .collect(Collectors.toList());
+        Callable<List<Territory>> makeTreeThread = () -> {
 
-            List<Camera> camerasWithoutGroup = camerasInCurrentTerritory.stream()
-                    .filter(c -> c.getGroupId() == null && c.getTerritoryId() != null)
-                    .collect(Collectors.toList());
+            Set<BigDecimal> territoryIds = territoryDictList.stream()
+                    .map(TerritoryDiction::getId)
+                    .collect(Collectors.toSet());
 
-            List<Group> filteredGroups = groupsList.stream()
-                    .filter(gr -> gr.getTerritoryId() == ter)
-                    .map(g -> {
+            for (BigDecimal ter : territoryIds) {
+                String territoryname = territoryDictList.stream()
+                        .parallel()
+                        .filter(t -> t.getId() == ter)
+                        .findAny()
+                        .map(TerritoryDiction::getName)
+                        .orElse(getNameOfEmptyTerritory());
+
+                String terrDefine = territoryDictList.stream()
+                        .parallel()
+                        .filter(t -> t.getId() == ter)
+                        .findAny()
+                        .map(TerritoryDiction::getDefine)
+                        .orElse("");
+
+                List<Camera> camerasInCurrentTerritory = allCameras.stream()
+                        .parallel()
+                        .filter(cam -> cam.getTerritoryId() == ter)
+                        .collect(Collectors.toList());
+
+                List<Camera> camerasWithoutGroup = camerasInCurrentTerritory.stream()
+                        .filter(c -> c.getGroupId() == null && c.getTerritoryId() != null)
+                        .collect(Collectors.toList());
+
+                List<Group> filteredGroups = groupsList.stream()
+                        .parallel()
+                        .filter(gr -> gr.getTerritoryId() == ter)
+                        .map(g -> {
 //                        TODO - добавить поле define
-                        return new Group(g.getGroupId(), g.getName(), ter,
-                                camerasInCurrentTerritory.stream()
-                                        .filter(camera -> {
-                                            return camera.getGroupId() == g.getGroupId();
-                                        })
-                                        .collect(Collectors.toList())
-                        );
-                    })
-                    .collect(Collectors.toList());
+                            return new Group(g.getGroupId(), g.getName(), ter,
+                                    camerasInCurrentTerritory.stream()
+                                            .filter(camera -> {
+                                                return camera.getGroupId() == g.getGroupId();
+                                            })
+                                            .collect(Collectors.toList())
+                            );
+                        })
+                        .collect(Collectors.toList());
 
-            if (!camerasWithoutGroup.isEmpty()) {
-                filteredGroups.add(new Group(nameOfEmptyGroup, ter, camerasWithoutGroup));
+                if (!camerasWithoutGroup.isEmpty()) {
+                    filteredGroups.add(new Group(nameOfEmptyGroup, ter, camerasWithoutGroup));
+                }
+                if (terrDefine.equals("")) {
+                    terrDefine = null;
+                }
+                Territory territory = new Territory(ter, territoryname, terrDefine, filteredGroups);
+                tree.add(territory);
             }
-            if (terrDefine.equals("")) {
-                terrDefine = null;
+            tree.sort(Comparator.comparing(Territory::getTerritory));
+            if (tree.get(0).getTerritory().equalsIgnoreCase(getNameOfEmptyTerritory())) {
+                Collections.rotate(tree, -1);
             }
-            Territory territory = new Territory(ter, territoryname, terrDefine, filteredGroups);
-            tree.add(territory);
-        }
-        tree.sort(Comparator.comparing(Territory::getTerritory));
-        if (tree.get(0).getTerritory().equalsIgnoreCase(getNameOfEmptyTerritory())) {
-            Collections.rotate(tree, -1);
-        }
-        territoryDictList.clear();
-        return tree;
+            territoryDictList.clear();
+            groupsList.clear();
+            long endTime = System.currentTimeMillis();
+            long duration = (endTime - startTime);
+            logger.info("*Время формирования JSON дерева списка камер = " + duration + " млСек.");
+            logger.info(" ######################################################");
+            return tree;
+        };
+        Future<List<Territory>> cameras = executorService.submit(makeTreeThread);
+        executorService.shutdown();
+        return cameras.get(2, TimeUnit.SECONDS);
+
     }
 
 
     public List<Camera> getAllCameras() throws SQLException {
         String sql = "SELECT * FROM face_control.s_cameras";
 
-        List<Camera> cameras = new ArrayList<>();
+        List<Camera> cameras = new CopyOnWriteArrayList<>();
+
+//      *******************************
+        final ThreadFactory threadFactory = new ThreadFactoryBuilder()
+                .setNameFormat("Поток камер № %d")
+                .setDaemon(true)
+                .build();
+        ExecutorService executorService = Executors.newFixedThreadPool(2, threadFactory);
+
+//      TODO
+        Runnable runnable = () -> {
+            territoryDictList = territoryDAO.getTerritories();
+
+//            List<Camera> allCameras = getAllCameras();
+//            return allCameras;
+        };
+//      *******************************
+
         territoryDictList = territoryDAO.getTerritories();
-        List<GroupDiction> groupsList = getGroups();
+
+        groupsList = groupDAO.getGroups();
 
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
@@ -175,7 +200,7 @@ public class CameraDAO {
             }
             connection.commit();
         }
-        logger.info("Информация со списком отправлена в ответ на GET запрос.");
+        logger.info(">>>GET запрос на получение камер:    SELECT * FROM face_control.s_cameras");
         cameras.sort(Comparator.comparing(Camera::getId));
         return cameras;
     }
@@ -209,8 +234,8 @@ public class CameraDAO {
             prepareStatement = connection.prepareStatement(prepareSQL);
 
 //            TODO - проверка ошибок на клиенте:
-            prepareStatement.setString(1, oldId);
-//            prepareStatement.setString(1, groupName);
+//            prepareStatement.setString(1, oldId);
+            prepareStatement.setString(1, groupName);
             prepareStatement.setString(2, id);
             prepareStatement.setString(3, cameraName);
             prepareStatement.setString(4, placeText);
@@ -309,7 +334,7 @@ public class CameraDAO {
         List<Territory> camerasJSON = new ArrayList<>();
 //      Словари из БД:
         List<TerritoryDiction> territories = territoryDAO.getTerritories();
-        List<GroupDiction> groupsList = getGroups();
+        List<GroupDiction> groupsList = groupDAO.getGroups();
 
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);

@@ -36,7 +36,7 @@ public class TerritoryDAO {
         String sql = "SELECT * FROM face_control.s_camera_territory";
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
-            logger.info(">>>GET запрос на получение территорий: " + sql);
+            logger.info(">GET запрос на получение территорий: " + sql);
             Statement statement = connection.createStatement();
             ResultSet rs = statement.executeQuery(sql);
             while (rs.next()) {
