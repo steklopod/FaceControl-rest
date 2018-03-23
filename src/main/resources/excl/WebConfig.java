@@ -1,4 +1,4 @@
-package ru.stdpr.fc.connection;
+package ru.steklopod.tv.connection;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -4,12 +4,12 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.standart-proect.isod-security</groupId>
-	<artifactId>FaceControl-rest</artifactId>
-	<version>0.0.2-SNAPSHOT</version>
+	<artifactId>REST-service</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
 	<packaging>war</packaging>
 
-	<name>FaceControl</name>
-	<description>Контроль трафика лиц</description>
+	<name>Starter</name>
+	<description>Стартуй братишка</description>
 
 	<parent>
 		<groupId>org.springframework.boot</groupId>
@@ -159,7 +159,7 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
 		</plugins>
-		<finalName>facecontrol-api</finalName>
+		<finalName>App-api</finalName>
 	</build>
 
 	<repositories>
